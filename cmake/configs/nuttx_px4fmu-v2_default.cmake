@@ -180,6 +180,15 @@ set(config_module_list
 
 	# Hardware test
 	#examples/hwtest
+
+
+        # Custom Apps für Analyse
+
+        examples/custom_app
+        examples/custom_daemon_app
+        examples/custom_subscriber_thread
+
+
 )
 
 set(config_extra_builtin_cmds

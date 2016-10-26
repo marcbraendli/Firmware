@@ -90,6 +90,7 @@ set(msg_file_names
 	sensor_combined.msg
 	sensor_gyro.msg
 	sensor_mag.msg
+	sensor_custom.msg # Für custom_Apps Analyse
 	servorail_status.msg
 	subsystem_info.msg
 	system_power.msg
