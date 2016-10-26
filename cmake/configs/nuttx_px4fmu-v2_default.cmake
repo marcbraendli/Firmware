@@ -186,7 +186,7 @@ set(config_module_list
 
         examples/custom_app
         examples/custom_daemon_app
-        examples/custom_subscriber_thread
+        #examples/custom_subscriber_thread
 
 
 )

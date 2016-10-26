@@ -1,7 +1,8 @@
 
 /**
  * @file custom_simple_app.cpp
- * Minimal application example for PX4 autopilot
+ * Für die Analyse des Flightstacks. Dieses App "subscribed" den Topic sensor_custom.
+ *
  *
  * @author Example User <mail@example.com>
  */
@@ -15,8 +16,10 @@
 #include <px4_tasks.h>
 
 #include <uORB/uORB.h>
-#include <uORB/topics/sensor_combined.h>
 #include <uORB/topics/sensor_custom.h>
+
+#include <uORB/topics/sensor_combined.h>   // Eigen definierter Topic als Test
+
 
 #include <uORB/topics/vehicle_attitude.h>
 
@@ -53,7 +56,7 @@ int custom_app_main(int argc, char *argv[])
     int error_counter = 0;
 
     for (int i = 0; i < 5; i++) {
-        /* wait for sensor update of 1 file descriptor for 1000 ms (1 second) */
+        /* wait for sensor update of 1 file descriptor for 2000 ms (1 second) */
         int poll_ret = px4_poll(fds, 1, 2000);
 
         /* handle the poll result */
