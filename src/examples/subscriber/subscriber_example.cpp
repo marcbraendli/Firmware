@@ -59,21 +59,32 @@ SubscriberExample::SubscriberExample() :
 	PX4_INFO("Param SUB_INTERV = %d", _p_sub_interv.get());
 	PX4_INFO("Param SUB_TESTF = %.3f", (double)_p_test_float.get());
 
-	/* Do some subscriptions */
-	/* Function */
-	_n.subscribe<px4_rc_channels>(rc_channels_callback_function, _p_sub_interv.get());
 
-	/* No callback */
-	_sub_rc_chan = _n.subscribe<px4_rc_channels>(500);
 
-	/* Class method */
-	_n.subscribe<px4_rc_channels>(&SubscriberExample::rc_channels_callback, this, 1000);
+//	/* Do some subscriptions */
+//	/* Function */
+//	_n.subscribe<px4_rc_channels>(rc_channels_callback_function, _p_sub_interv.get());
 
-	/* Another class method */
-	_n.subscribe<px4_vehicle_attitude>(&SubscriberExample::vehicle_attitude_callback, this, 1000);
+//	/* No callback */
+//	_sub_rc_chan = _n.subscribe<px4_rc_channels>(500);
 
-	/* Yet antoher class method */
-	_n.subscribe<px4_parameter_update>(&SubscriberExample::parameter_update_callback, this, 1000);
+//	/* Class method */
+//	_n.subscribe<px4_rc_channels>(&SubscriberExample::rc_channels_callback, this, 1000);
+
+//	/* Another class method */
+//	_n.subscribe<px4_vehicle_attitude>(&SubscriberExample::vehicle_attitude_callback, this, 1000);
+
+//	/* Yet antoher class method */
+//    _n.subscribe<px4_parameter_update>(&SubscriberExample::parameter_update_callback, this, 1000);
+
+
+//    /*Custom subscribtion */
+//    _n.subscribe<px4_actuator_armed>(&SubscriberExample::actuator_armed_callback, this, 1000);
+
+//    _n.subscribe<px4_vehicle_status>(&SubscriberExample::vehicle_status_callback, this, 1000);
+
+
+    _n.subscribe<px4_sensor_custom>(&SubscriberExample::sensor_custom_callback, this, 5000);
 
 	PX4_INFO("subscribed");
 }
@@ -93,7 +104,7 @@ void SubscriberExample::rc_channels_callback(const px4_rc_channels &msg)
 void SubscriberExample::vehicle_attitude_callback(const px4_vehicle_attitude &msg)
 {
 	PX4_INFO("vehicle_attitude_callback (method): [%" PRIu64 "]",
-		 msg.data().timestamp);
+         msg.data().timestamp);
 }
 
 void SubscriberExample::parameter_update_callback(const px4_parameter_update &msg)
@@ -105,3 +116,31 @@ void SubscriberExample::parameter_update_callback(const px4_parameter_update &ms
 	_p_test_float.update();
 	PX4_INFO("Param SUB_TESTF = %.3f", (double)_p_test_float.get());
 }
+
+
+//**********************myFunction**************************
+
+void SubscriberExample::actuator_armed_callback(const px4_actuator_armed &msg)
+{
+    PX4_INFO("actuator_armed_callback (method): [%" PRIu64 "]",
+         msg.data().timestamp);
+}
+
+void SubscriberExample::vehicle_status_callback(const px4_vehicle_status &msg)
+{
+    PX4_INFO("vehicle_status_callback (method): [%" PRIu64 "]",
+         msg.data().timestamp);
+
+    PX4_INFO("vehicle_status_callback (method): [%" PRIu64 "]",
+         msg.data().arming_state);
+
+}
+
+void SubscriberExample::sensor_custom_callback(const px4_sensor_custom &msg)
+{
+    PX4_INFO("sensor_custom_callback (method): [%" PRIu64 "]",
+         msg.data().custom_parameter_for_test);
+
+}
+
+

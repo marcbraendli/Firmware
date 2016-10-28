@@ -38,6 +38,7 @@
  * @author Thomas Gubler <thomasgubler@gmail.com>
  */
 #include <px4.h>
+#include <platforms/nuttx/px4_messages/px4_sensor_custom.h>
 
 using namespace px4;
 
@@ -61,7 +62,14 @@ protected:
 	AppState _appState;
 
 	void rc_channels_callback(const px4_rc_channels &msg);
-	void vehicle_attitude_callback(const px4_vehicle_attitude &msg);
+    void vehicle_attitude_callback(const px4_vehicle_attitude &msg);
 	void parameter_update_callback(const px4_parameter_update &msg);
+
+
+    //**********************myFunction**************************
+    void actuator_armed_callback(const px4_actuator_armed &msg);
+    void vehicle_status_callback(const px4_vehicle_status &msg);
+
+    void sensor_custom_callback(const px4_sensor_custom &msg);
 
 };
