@@ -25,7 +25,7 @@
 
 __EXPORT int custom_app_main(int argc, char *argv[]);
 
-
+int simple_task;
 int custom_app_main(int argc, char *argv[])
 {
     PX4_WARN("This is Custom_Simple_App");
@@ -56,7 +56,7 @@ int custom_app_main(int argc, char *argv[])
     int error_counter = 0;
 
     for (int i = 0; i < 5; i++) {
-        /* wait for sensor update of 1 file descriptor for 2000 ms (1 second) */
+        /* wait for sensor update of 1 file descriptor for 2000 ms (2 second) */
         int poll_ret = px4_poll(fds, 1, 2000);
 
         /* handle the poll result */
@@ -99,6 +99,21 @@ int custom_app_main(int argc, char *argv[])
              */
         }
     }
+
+
+
+
+
+    PX4_INFO("let's start a new App");
+
+    simple_task = px4_task_spawn_cmd("simple App 2",
+                     SCHED_DEFAULT,
+                     SCHED_PRIORITY_MAX,
+                     2000,
+                     custom_app_main,
+                     NULL);
+
+
 
     PX4_INFO("exiting");
 

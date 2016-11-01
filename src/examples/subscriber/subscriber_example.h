@@ -39,7 +39,7 @@
  */
 #include <px4.h>
 #include <platforms/nuttx/px4_messages/px4_sensor_custom.h>
-
+#include <nuttx/wqueue.h>
 using namespace px4;
 
 void rc_channels_callback_function(const px4_rc_channels &msg);
@@ -71,5 +71,8 @@ protected:
     void vehicle_status_callback(const px4_vehicle_status &msg);
 
     void sensor_custom_callback(const px4_sensor_custom &msg);
+    static void subscriber_trampoline(void *arg);
 
+private:
+    work_s			_work;
 };

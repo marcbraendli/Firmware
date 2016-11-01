@@ -52,6 +52,9 @@
 #include <systemlib/systemlib.h>
 #include <systemlib/err.h>
 
+
+extern int main(int argc, char **argv);
+
 static bool thread_should_exit = false;		/**< daemon exit flag */
 static bool thread_running = false;		/**< daemon status flag */
 static int daemon_task;				/**< Handle of daemon task / thread */
@@ -70,6 +73,12 @@ int custom_daemon_thread_main(int argc, char *argv[]);
  * Print the correct usage.
  */
 static void usage(const char *reason);
+
+/**
+ * Function for analizing architecture
+ */
+void doSomeOtherShit(void);
+
 
 static void
 usage(const char *reason)
@@ -141,6 +150,8 @@ int custom_daemon_thread_main(int argc, char *argv[])
         orb_advert_t att_pub = orb_advertise(ORB_ID(sensor_custom), &att);
 
 
+
+
 	warnx("[daemon] starting\n");
 
 	thread_running = true;
@@ -163,4 +174,20 @@ int custom_daemon_thread_main(int argc, char *argv[])
 	thread_running = false;
 
 	return 0;
+}
+
+void doSomeOtherShit(void){
+static int i;
+
+if(i == 0){
+
+}
+daemon_task = px4_task_spawn_cmd("daemon2",
+                 SCHED_DEFAULT,
+                 SCHED_PRIORITY_MAX,
+                 2000,
+                 custom_daemon_thread_main,
+                 NULL);
+    ++i;
+
 }

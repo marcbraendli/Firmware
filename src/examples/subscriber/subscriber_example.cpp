@@ -41,6 +41,8 @@
 #include "subscriber_params.h"
 #include "subscriber_example.h"
 
+
+
 using namespace px4;
 
 void rc_channels_callback_function(const px4_rc_channels &msg)
@@ -51,7 +53,8 @@ void rc_channels_callback_function(const px4_rc_channels &msg)
 SubscriberExample::SubscriberExample() :
 	_n(_appState),
 	_p_sub_interv("SUB_INTERV", PARAM_SUB_INTERV_DEFAULT),
-	_p_test_float("SUB_TESTF", PARAM_SUB_TESTF_DEFAULT)
+    _p_test_float("SUB_TESTF", PARAM_SUB_TESTF_DEFAULT),
+    _work{}
 {
 	/* Read the parameter back as example */
 	_p_sub_interv.update();
@@ -59,7 +62,8 @@ SubscriberExample::SubscriberExample() :
 	PX4_INFO("Param SUB_INTERV = %d", _p_sub_interv.get());
 	PX4_INFO("Param SUB_TESTF = %.3f", (double)_p_test_float.get());
 
-
+    //nötig da sonst dekonstruktor streikt gemäss lis3dml.cpp
+    memset(&_work, 0, sizeof(_work));
 
 //	/* Do some subscriptions */
 //	/* Function */
@@ -140,7 +144,17 @@ void SubscriberExample::sensor_custom_callback(const px4_sensor_custom &msg)
 {
     PX4_INFO("sensor_custom_callback (method): [%" PRIu64 "]",
          msg.data().custom_parameter_for_test);
+        //_n.~NodeHandle();
 
+        //define some work for analyzing
+        work_queue(HPWORK, &_work, (worker_t)&SubscriberExample::subscriber_trampoline, this, 5);
+
+
+}
+
+void SubscriberExample::subscriber_trampoline(void *arg){
+    PX4_INFO("This is SubscriberExample Trampoline()");
+    sleep(1);
 }
 
 
