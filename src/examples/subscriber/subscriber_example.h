@@ -72,7 +72,9 @@ protected:
 
     void sensor_custom_callback(const px4_sensor_custom &msg);
     static void subscriber_trampoline(void *arg);
+    static void subscriber_trampoline2(void *arg);
 
 private:
     work_s			_work;
+    work_s			_workLP;
 };

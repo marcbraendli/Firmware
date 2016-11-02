@@ -179,15 +179,16 @@ int custom_daemon_thread_main(int argc, char *argv[])
 void doSomeOtherShit(void){
 static int i;
 
-if(i == 0){
-
+if(false){
+//how to start a new daemon
+    daemon_task = px4_task_spawn_cmd("daemon2",
+                     SCHED_DEFAULT,
+                     SCHED_PRIORITY_MAX,
+                     2000,
+                     custom_daemon_thread_main,
+                     NULL);
 }
-daemon_task = px4_task_spawn_cmd("daemon2",
-                 SCHED_DEFAULT,
-                 SCHED_PRIORITY_MAX,
-                 2000,
-                 custom_daemon_thread_main,
-                 NULL);
+
     ++i;
 
 }

@@ -53,8 +53,8 @@ void rc_channels_callback_function(const px4_rc_channels &msg)
 SubscriberExample::SubscriberExample() :
 	_n(_appState),
 	_p_sub_interv("SUB_INTERV", PARAM_SUB_INTERV_DEFAULT),
-    _p_test_float("SUB_TESTF", PARAM_SUB_TESTF_DEFAULT),
-    _work{}
+    _p_test_float("SUB_TESTF", PARAM_SUB_TESTF_DEFAULT)
+    //_work{}
 {
 	/* Read the parameter back as example */
 	_p_sub_interv.update();
@@ -89,6 +89,8 @@ SubscriberExample::SubscriberExample() :
 
 
     _n.subscribe<px4_sensor_custom>(&SubscriberExample::sensor_custom_callback, this, 5000);
+
+
 
 	PX4_INFO("subscribed");
 }
@@ -147,14 +149,38 @@ void SubscriberExample::sensor_custom_callback(const px4_sensor_custom &msg)
         //_n.~NodeHandle();
 
         //define some work for analyzing
-        work_queue(HPWORK, &_work, (worker_t)&SubscriberExample::subscriber_trampoline, this, 5);
 
+       // work_queue(HPWORK, &_work, (worker_t)&SubscriberExample::subscriber_trampoline, this, 1000);
+
+       // Does not work, why ?
+       // work_queue(LPWORK, &_work, (worker_t)&SubscriberExample::subscriber_trampoline2, this, 500);
+
+       // work_queue(HPWORK, &_work, (worker_t)&SubscriberExample::subscriber_trampoline2, this, 100);
+       // work_queue(USRWORK, &_workLP, (worker_t)&SubscriberExample::subscriber_trampoline, this, 100);
+
+
+
+        work_queue(HPWORK, &_work, (worker_t)&SubscriberExample::subscriber_trampoline2, this, 100);
+        work_queue(HPWORK, &_workLP, (worker_t)&SubscriberExample::subscriber_trampoline, this, 100);
+        PX4_INFO("scheduled some work");
 
 }
 
 void SubscriberExample::subscriber_trampoline(void *arg){
     PX4_INFO("This is SubscriberExample Trampoline()");
+
     sleep(1);
+    PX4_INFO("Trampoline() finished");
+
+
 }
 
+void SubscriberExample::subscriber_trampoline2(void *arg){
+    PX4_INFO("This is SubscriberExample Trampoline2()");
+
+    sleep(8);
+    PX4_INFO("Trampoline2() finished");
+
+
+}
 
