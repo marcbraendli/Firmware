@@ -35,7 +35,7 @@ px4_add_module(
         MAIN custom_daemon_app
 	STACK_MAIN 1200
 	SRCS
-		custom_daemon_app.c
+		custom_daemon_app.cpp
 	DEPENDS
 		platforms__common
 	)
