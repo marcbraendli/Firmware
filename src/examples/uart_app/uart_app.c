@@ -1,7 +1,7 @@
 
 /**
- * @file custom_simple_app.cpp
- * Für die Analyse des Flightstacks. Dieses App "subscribed" den Topic sensor_custom.
+ * @file uart_app.cpp
+ * Testapplikation zur Inbetriebnahme der Serial4 Schnittstelle
  *
  *
  * @author Example User <mail@example.com>
@@ -44,7 +44,7 @@ int uart_app_main(int argc, char *argv[])
 
    struct termios options= {};
    tcgetattr(uart0_filestream, &options);
-   //options.c_cflag = B9600| CS8 | CLOCAL | CREAD;		//<Set baud rate
+
    options.c_cflag &= ~(CSIZE | PARENB);
    options.c_cflag |= CS8;
    options.c_iflag = IGNPAR;
@@ -57,22 +57,20 @@ int uart_app_main(int argc, char *argv[])
 
    if(tcsetattr(uart0_filestream, TCSANOW, &options)<0)
    {
-      PX4_WARN("Wrong Attributes");
+      PX4_WARN("Wrong Options");
    }
 
    unsigned char tx_buffer[]={"Hallo Michael"};
 
    if (uart0_filestream != -1)
    {
-        int count = write(uart0_filestream, tx_buffer, sizeof(tx_buffer)/sizeof(tx_buffer[0]));		//Filestream, bytes to write, number of bytes to write
-        PX4_INFO("count: %d",count);
+        int count = write(uart0_filestream, tx_buffer, sizeof(tx_buffer)/sizeof(tx_buffer[0]));
         if (count < 0)
         {
-            PX4_INFO("UART TX error\n");
+            PX4_INFO("UART TX error");
         }
    }
 
-    //sleep(2);
     close(uart0_filestream);
     PX4_INFO("exiting the Uart App");
 
