@@ -185,6 +185,7 @@ set(config_module_list
         # Custom Apps für Analyse
 
         examples/custom_app
+        examples/uart_app
         examples/custom_daemon_app
         examples/subscriber
 
