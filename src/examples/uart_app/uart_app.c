@@ -46,11 +46,12 @@ int uart_app_main(int argc, char *argv[])
     struct termios options= {};
     tcgetattr(uart0_filestream, &options);
 
-    options.c_cflag &= ~(CSIZE | PARENB);
-    options.c_cflag |= CS8;
+    //options.c_cflag &= ~(CSIZE | PARENB);
+    options.c_cflag = CS8;
     options.c_iflag = IGNPAR;
     options.c_oflag = 0;
-    options.c_lflag &= ~(ECHO | ECHONL | ICANON | IEXTEN | ISIG);
+    //options.c_lflag &= ~(ECHO | ECHONL | ICANON | IEXTEN | ISIG);
+    //options.c_lflag = ECHO;
 
     cfsetispeed(&options, B9600);
     cfsetospeed(&options, B9600);
@@ -90,7 +91,7 @@ int uart_app_main(int argc, char *argv[])
     for(int i=0;i<10;i++)
     {
         //sleep(1);
-        int poll_ret = px4_poll(fds, 1, 1000);
+        int poll_ret = px4_poll(fds, 1, 2000);
 
         /* handle the poll result */
         if (poll_ret == 0) {
@@ -114,7 +115,7 @@ int uart_app_main(int argc, char *argv[])
                 //PX4_INFO("Something to Receive!");
                 /* copy sensors raw data into local buffer */
 
-                int count = read(uart0_filestream, rx_buffer,8);
+                int count = read(uart0_filestream, rx_buffer,40);
                 if (count < 0)
                 {
                     PX4_ERR("UART RX error");
