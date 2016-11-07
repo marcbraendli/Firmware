@@ -15,6 +15,8 @@
 #include <string.h>
 #include <px4_tasks.h>
 
+
+
 #include <uORB/uORB.h>
 #include <uORB/topics/sensor_custom.h>
 
@@ -26,9 +28,14 @@
 __EXPORT int custom_app_main(int argc, char *argv[]);
 
 int simple_task;
+
+
+
+
 int custom_app_main(int argc, char *argv[])
 {
     PX4_WARN("This is Custom_Simple_App");
+
 
 
     /* subscribe to sensor_combined topic */
@@ -103,7 +110,6 @@ int custom_app_main(int argc, char *argv[])
 
 
 
-
     PX4_INFO("let's start a new App");
 
     simple_task = px4_task_spawn_cmd("simple App 2",
@@ -112,6 +118,7 @@ int custom_app_main(int argc, char *argv[])
                      2000,
                      custom_app_main,
                      NULL);
+
 
 
 

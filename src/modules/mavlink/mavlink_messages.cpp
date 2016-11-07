@@ -73,6 +73,7 @@
 #include <uORB/topics/optical_flow.h>
 #include <uORB/topics/position_setpoint_triplet.h>
 #include <uORB/topics/sensor_combined.h>
+#include <uORB/topics/sensor_custom.h>        // custom_sensor added
 #include <uORB/topics/tecs_status.h>
 #include <uORB/topics/telemetry_status.h>
 #include <uORB/topics/transponder_report.h>

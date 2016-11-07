@@ -31,12 +31,15 @@
 #
 ############################################################################
 px4_add_module(
-	MODULE examples__custom_daemon_app
-        MAIN custom_daemon_app
+	MODULE drivers__toby
+	MAIN toby
 	STACK_MAIN 1200
+	COMPILE_FLAGS
+		-Os
 	SRCS
-		custom_daemon_app.cpp
+		toby.cpp
+
 	DEPENDS
 		platforms__common
 	)
-# vim: set noet ft=cmake fenc=utf-8 ff=unix : 
+# vim: set noet ft=cmake fenc=utf-8 ff=unix :

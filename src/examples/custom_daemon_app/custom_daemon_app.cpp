@@ -44,7 +44,11 @@
 #include <unistd.h>
 #include <uORB/topics/sensor_custom.h>
 #include <uORB/topics/vehicle_attitude.h>
+#include <drivers/drv_led.h>
+#include <drivers/drv_rgbled.h>
+#include <modules/commander/commander_helper.h>
 
+#include "DevMgr.hpp"
 
 #include <px4_config.h>
 #include <nuttx/sched.h>
@@ -52,12 +56,19 @@
 #include <systemlib/systemlib.h>
 #include <systemlib/err.h>
 
+using namespace DriverFramework;
 
-extern int main(int argc, char **argv);
+//extern int main(int argc, char **argv);
+extern "C" __EXPORT int custom_daemon_app_main(int argc, char *argv[]);
+
 
 static bool thread_should_exit = false;		/**< daemon exit flag */
 static bool thread_running = false;		/**< daemon status flag */
 static int daemon_task;				/**< Handle of daemon task / thread */
+
+
+static DevHandle h_rgbleds_custom;
+//void rgbled_set_mode(rgbled_mode_t mode);
 
 /**
  * daemon management function.
@@ -145,6 +156,8 @@ int custom_daemon_app_main(int argc, char *argv[])
 
 int custom_daemon_thread_main(int argc, char *argv[])
 {
+    DevMgr::getHandle(RGBLED0_DEVICE_PATH, h_rgbleds_custom);
+
         struct sensor_custom_s att;
         memset(&att, 0, sizeof(att));
         orb_advert_t att_pub = orb_advertise(ORB_ID(sensor_custom), &att);
@@ -159,6 +172,7 @@ int custom_daemon_thread_main(int argc, char *argv[])
     PX4_INFO("Thread actually running with high priority");
 	while (!thread_should_exit) {
 
+  //      rgbled_set_mode(RGBLED_MODE_PATTERN);
 
         att.custom_parameter_for_test = 100;
         orb_publish(ORB_ID(sensor_custom), att_pub, &att);
@@ -179,6 +193,8 @@ int custom_daemon_thread_main(int argc, char *argv[])
 void doSomeOtherShit(void){
 static int i;
 
+
+/*
 if(false){
 //how to start a new daemon
     daemon_task = px4_task_spawn_cmd("daemon2",
@@ -188,7 +204,12 @@ if(false){
                      custom_daemon_thread_main,
                      NULL);
 }
-
+*/
     ++i;
 
 }
+
+
+
+
+
