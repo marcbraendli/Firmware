@@ -92,6 +92,12 @@
 #include <uORB/topics/wind_estimate.h>
 #include <uORB/uORB.h>
 
+//*****************custom Includes*****************************
+
+#include <uORB/topics/sensor_custom.h>
+#include <v2.0/custom_messages/mavlink_msg_sensor_custom.h>
+
+
 
 static uint16_t cm_uint16_from_m_float(float m);
 static void get_mavlink_mode_state(struct vehicle_status_s *status, uint8_t *mavlink_state,
@@ -3218,6 +3224,76 @@ protected:
 		}
 	}
 };
+
+
+
+//*************************************************************************************
+class MavlinkStreamSensorCustom : public MavlinkStream
+{
+public:
+    const char *get_name() const
+    {
+        return MavlinkStreamSensorCustom::get_name_static();
+    }
+    static const char *get_name_static()
+    {
+        return "SensorCustom";
+    }
+    uint8_t get_id()
+    {
+        return MAVLINK_MSG_ID_sensor_custom;
+    }
+    static MavlinkStream *new_instance(Mavlink *mavlink)
+    {
+        return new MavlinkStreamSensorCustom(mavlink);
+    }
+    unsigned get_size()
+    {
+        return MAVLINK_MSG_ID_sensor_custom_LEN + MAVLINK_NUM_NON_PAYLOAD_BYTES;
+    }
+
+private:
+    MavlinkOrbSubscription *_sub;
+    uint64_t _ca_traj_time;
+
+    /* do not allow top copying this class */
+    MavlinkStreamSensorCustom(MavlinkStreamSensorCustom &);
+    MavlinkStreamSensorCustom& operator = (const MavlinkStreamSensorCustom &);
+
+protected:
+    explicit MavlinkStreamSensorCustom(Mavlink *mavlink) : MavlinkStream(mavlink),
+        _sub(_mavlink->add_orb_subscription(ORB_ID(sensor_custom))),  // make sure you enter the name of your uorb topic here
+        _ca_traj_time(0)
+    {}
+
+    void send(const hrt_abstime t)
+    {
+        struct sensor_custom_s _sensor_custom;    //make sure ca_traj_struct_s is the definition of your uorb topic
+
+        if (_sub->update(&_ca_traj_time, &_sensor_custom)) {
+            mavlink_sensor_custom_t _msg_sensor_custom;  //make sure mavlink_ca_trajectory_t is the definition of your custom mavlink message
+
+
+
+            _msg_sensor_custom.custom_parameter_for_test = _sensor_custom.custom_parameter_for_test;
+
+
+           // _mavlink->send_message(MAVLINK_MSG_ID_sensor_custom &_msg_sensor_custom);
+
+
+            mavlink_msg_sensor_custom_send_struct(_mavlink->get_channel(), &_msg_sensor_custom);
+            PX4_WARN("sensor_custom : Mavlink send()");
+
+
+        }
+    }
+};
+//*************************************************************************************
+
+
+
+
+
 
 const StreamListItem *streams_list[] = {
 	new StreamListItem(&MavlinkStreamHeartbeat::new_instance, &MavlinkStreamHeartbeat::get_name_static, &MavlinkStreamHeartbeat::get_id_static),

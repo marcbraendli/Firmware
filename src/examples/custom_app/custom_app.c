@@ -112,6 +112,7 @@ int custom_app_main(int argc, char *argv[])
 
     PX4_INFO("let's start a new App");
 
+    /*
     simple_task = px4_task_spawn_cmd("simple App 2",
                      SCHED_DEFAULT,
                      SCHED_PRIORITY_MAX,
@@ -123,6 +124,9 @@ int custom_app_main(int argc, char *argv[])
 
 
     PX4_INFO("exiting");
+
+*/
+
 
 
 
