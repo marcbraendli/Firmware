@@ -31,15 +31,12 @@
 #
 ############################################################################
 px4_add_module(
-	MODULE drivers__toby
-	MAIN toby
-	STACK_MAIN 1200
-	COMPILE_FLAGS
-		-Os
-	SRCS
-		toby.cpp
-
-	DEPENDS
-		platforms__common
-	)
+        MODULE drivers__toby
+        COMPILE_FLAGS
+                -Os
+        SRCS
+                toby.cpp
+        DEPENDS
+                platforms__common
+        )
 # vim: set noet ft=cmake fenc=utf-8 ff=unix :

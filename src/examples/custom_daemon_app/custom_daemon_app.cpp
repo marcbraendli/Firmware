@@ -44,18 +44,15 @@
 #include <unistd.h>
 #include <uORB/topics/sensor_custom.h>
 #include <uORB/topics/vehicle_attitude.h>
-<<<<<<< HEAD:src/examples/custom_daemon_app/custom_daemon_app.cpp
 #include <drivers/drv_led.h>
 #include <drivers/drv_rgbled.h>
 #include <modules/commander/commander_helper.h>
-=======
 #include <modules/commander/commander_helper.h>
 #include <drivers/drv_hrt.h>
 #include <drivers/drv_led.h>
 #include <drivers/drv_led.h>
 #include "DevMgr.hpp"
 
->>>>>>> 51784a807a422adc0b14ce1f20cad185174be07c:src/examples/custom_daemon_app/custom_daemon_app.cpp
 
 #include "DevMgr.hpp"
 
@@ -64,19 +61,16 @@
 
 #include <systemlib/systemlib.h>
 #include <systemlib/err.h>
-<<<<<<< HEAD:src/examples/custom_daemon_app/custom_daemon_app.cpp
 
 using namespace DriverFramework;
 
 //extern int main(int argc, char **argv);
 extern "C" __EXPORT int custom_daemon_app_main(int argc, char *argv[]);
 
-=======
 using namespace DriverFramework;
 
 extern int main(int argc, char **argv);
 extern "C" __EXPORT int custom_daemon_app_main(int argc, char *argv[]);
->>>>>>> 51784a807a422adc0b14ce1f20cad185174be07c:src/examples/custom_daemon_app/custom_daemon_app.cpp
 
 static bool thread_should_exit = false;		/**< daemon exit flag */
 static bool thread_running = false;		/**< daemon status flag */
@@ -234,13 +228,10 @@ if(false){
 
 }
 
-<<<<<<< HEAD:src/examples/custom_daemon_app/custom_daemon_app.cpp
 
 
 
 
-=======
 void myInit(){
         DevMgr::getHandle(LED0_DEVICE_PATH, h_leds);
 }
->>>>>>> 51784a807a422adc0b14ce1f20cad185174be07c:src/examples/custom_daemon_app/custom_daemon_app.cpp
