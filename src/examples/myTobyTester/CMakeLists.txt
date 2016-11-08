@@ -31,15 +31,12 @@
 #
 ############################################################################
 px4_add_module(
-        MODULE drivers__toby
-        MAIN toby
-        COMPILE_FLAGS
-                -Os
-        SRCS
-                toby.cpp
-		toby.h
-        DEPENDS
-                platforms__common
-        )
-
-# vim: set noet ft=cmake fenc=utf-8 ff=unix :
+	MODULE examples__myTobyTester
+        MAIN TobyTester
+	STACK_MAIN 1200
+	SRCS
+		TobyTester.cpp
+	DEPENDS
+		platforms__common
+	)
+# vim: set noet ft=cmake fenc=utf-8 ff=unix : 

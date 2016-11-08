@@ -47,13 +47,11 @@
 #include <drivers/drv_led.h>
 #include <drivers/drv_rgbled.h>
 #include <modules/commander/commander_helper.h>
-#include <modules/commander/commander_helper.h>
 #include <drivers/drv_hrt.h>
-#include <drivers/drv_led.h>
-#include <drivers/drv_led.h>
 #include "DevMgr.hpp"
 
-
+#include <drivers/device/device.h>
+#include <drivers/drv_hrt.h>
 #include "DevMgr.hpp"
 
 #include <px4_config.h>

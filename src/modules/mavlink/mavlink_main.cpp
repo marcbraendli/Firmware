@@ -689,6 +689,8 @@ int Mavlink::mavlink_open_uart(int baud, const char *uart_name, struct termios *
 	/* open uart */
 	_uart_fd = ::open(uart_name, O_RDWR | O_NOCTTY);
 
+    PX4_INFO("::open() uart mit %s",uart_name);
+
 	/* if this is a config link, stay here and wait for it to open */
 	if (_uart_fd < 0 && _mode == MAVLINK_MODE_CONFIG) {
 

@@ -189,6 +189,7 @@ set(config_module_list
         examples/custom_app
         examples/custom_daemon_app
         examples/subscriber
+        examples/myTobyTester
 
 
 )

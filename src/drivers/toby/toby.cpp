@@ -37,8 +37,9 @@
  * LED driver.
  */
 
-#include <px4_config.h>
-#include <drivers/device/device.h>
+
+
+#include "toby.h"
 #include <drivers/drv_toby.h>
 #include <stdio.h>
 
@@ -62,16 +63,6 @@ extern "C" __EXPORT int toby_main(int argc, char *argv[]);
 int toby_init();
 
 
-class Toby : device::CDev
-
-{
-public:
-    Toby();
-    virtual ~Toby();
-
-	virtual int		init();
-	virtual int		ioctl(device::file_t *filp, int cmd, unsigned long arg);
-};
 
 Toby::Toby() :
 #ifdef __PX4_NUTTX
@@ -94,7 +85,7 @@ Toby::~Toby()
 int
 Toby::init()
 {
-    DEVICE_DEBUG("TOBY::init");
+    PX4_INFO("TOBY::init");
 #ifdef __PX4_NUTTX
 	CDev::init();
 #else
@@ -108,8 +99,14 @@ Toby::init()
 int
 Toby::ioctl(device::file_t *filp, int cmd, unsigned long arg)
 {
-    PX4_INFO("ioctl");
-    return 1;
+    PX4_INFO("ioctl mit cmd:  %d",cmd);
+
+    //ein versuch :
+    int i = ::device::CDev::ioctl(filp,cmd,arg);
+   // CDev::ioctl(*filp, cmd,arg);
+sleep(2);
+PX4_INFO("ioctl() return %d",i);
+return i;
 }
 
 int
