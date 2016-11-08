@@ -39,7 +39,7 @@
 
 #include <px4_config.h>
 #include <drivers/device/device.h>
-#include <drivers/drv_led.h>
+#include <drivers/drv_toby.h>
 #include <stdio.h>
 
 /*
@@ -57,12 +57,10 @@ extern void toby_init();
 __END_DECLS
 */
 
+extern "C" __EXPORT int toby_main(int argc, char *argv[]);
 
-int
-toby_init(){
-    PX4_INFO("toby_init");
-    return 0;
-}
+int toby_init();
+
 
 class Toby : device::CDev
 
@@ -114,11 +112,82 @@ Toby::ioctl(device::file_t *filp, int cmd, unsigned long arg)
     return 1;
 }
 
-
+int
+toby_init(){
+    PX4_INFO("toby_init");
+    return 0;
+}
 
 namespace
 {
-//Toby *gLTE;
+Toby *gToby;
 }
+
+int
+toby_main(int argc, char *argv[])
+{
+    /* set to default */
+    const char *device_name = TOBY_DEVICE_PATH;
+   // const char *device_name2 = nullptr;
+    int myoptind = 1;
+    const char *verb = argv[myoptind];
+
+
+
+
+    if (argc < 2) {
+        goto out;
+    }
+
+    /*
+     * Start/load the driver.
+     */
+
+    if (!strcmp(verb, "start")) {
+        if (gToby != nullptr) {
+            warnx("already started");
+            return 1;
+        }
+
+        gToby = new Toby();
+
+
+
+        return 0;
+    }
+
+    if (!strcmp(argv[1], "stop")) {
+    }
+
+    /*
+     * Test the driver/device.
+     */
+    if (!strcmp(argv[1], "test")) {
+    }
+
+    /*
+     * Reset the driver.
+     */
+    if (!strcmp(argv[1], "reset")) {
+    }
+
+    /*
+     * Print driver status.
+     */
+    if (!strcmp(argv[1], "status")) {
+    }
+
+    if(device_name){
+
+    }
+
+    return 0;
+
+out:
+    PX4_ERR("unrecognized command, try 'start', 'stop', 'test', 'reset' or 'status'");
+    PX4_ERR("[-d " TOBY_DEVICE_PATH "][-f (for enabling fake)][-s (to enable sat info)]");
+    return 1;
+}
+
 
 

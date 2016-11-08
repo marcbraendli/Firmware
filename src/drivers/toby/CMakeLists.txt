@@ -32,6 +32,7 @@
 ############################################################################
 px4_add_module(
         MODULE drivers__toby
+        MAIN toby
         COMPILE_FLAGS
                 -Os
         SRCS
@@ -39,4 +40,5 @@ px4_add_module(
         DEPENDS
                 platforms__common
         )
+
 # vim: set noet ft=cmake fenc=utf-8 ff=unix :
