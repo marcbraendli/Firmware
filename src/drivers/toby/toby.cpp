@@ -42,6 +42,15 @@
 #include "toby.h"
 #include <drivers/drv_toby.h>
 #include <stdio.h>
+#include <termios.h>
+
+#include <px4_config.h>
+#include <px4_posix.h>
+#include <unistd.h>
+#include <stdio.h>
+#include <poll.h>
+#include <string.h>
+#include <fcntl.h>
 
 /*
  * Ideally we'd be able to get these from up_internal.h,
@@ -62,7 +71,7 @@ extern "C" __EXPORT int toby_main(int argc, char *argv[]);
 
 int toby_init();
 
-
+void *doClose(void *arg);
 
 Toby::Toby() :
 #ifdef __PX4_NUTTX
@@ -96,6 +105,121 @@ Toby::init()
 	return 0;
 }
 
+
+int Toby::open(device::file_t *filp){
+    PX4_INFO("open() is called");
+        pid_t x = ::getpid();
+        PX4_INFO("actual thread id : %d",x);
+
+
+    //*******************************************************************
+
+    uart0_filestream =::open("/dev/ttyS6", O_RDWR |O_NOCTTY );
+
+    if(uart0_filestream == -1)
+    {
+        PX4_INFO("Unable to Open /dev/ttys6");
+
+    }
+    PX4_INFO("open return value /dev/ttys6: %d",uart0_filestream);
+
+    tcgetattr(uart0_filestream, &options);
+
+    //options.c_cflag &= ~(CSIZE | PARENB);
+    options.c_cflag = CS8;
+    options.c_iflag = IGNPAR;
+    options.c_oflag = 0;
+    //options.c_lflag &= ~(ECHO | ECHONL | ICANON | IEXTEN | ISIG);
+    //options.c_lflag = ECHO;
+
+    cfsetispeed(&options, B9600);
+    cfsetospeed(&options, B9600);
+
+    tcflush(uart0_filestream, TCIFLUSH);
+
+    if(tcsetattr(uart0_filestream, TCSANOW, &options)<0)
+    {
+        PX4_WARN("Wrong Options");
+    }
+
+
+    //*******************************************************************
+
+
+    int i = ::device::CDev::open(filp);
+    return i;
+}
+
+
+int	Toby::close(device::file_t *filp){
+    PX4_INFO("close() is called, we close with %d",uart0_filestream);
+    ::device::CDev::close(filp);
+    pid_t x = ::getpid();
+    PX4_INFO("actual thread id : %d",x);
+
+    /*
+    pthread_t Toby_thread;
+    pthread_create(&Toby_thread, NULL, doClose, NULL);
+    pthread_join(Toby_thread, NULL);
+    */
+   // ::close(uart0_filestream);
+
+
+   PX4_INFO("uart closed mit %d");
+
+   return 0;
+
+
+
+
+}
+
+
+ssize_t	Toby::read(device::file_t *filp, char *buffer, size_t buflen)
+{
+    PX4_INFO("read() is called");
+
+    ::device::CDev::read(filp,buffer,buflen);
+    return 0;
+}
+
+ssize_t	Toby::write(device::file_t *filp, const char *buffer, size_t buflen){
+
+    PX4_INFO("write() is called");
+
+    int i = ::device::CDev::write(filp, buffer, buflen);
+
+    if (uart0_filestream != -1)
+    {
+        PX4_INFO("::write() uart_filstream %d",uart0_filestream);
+
+        int count = ::write(uart0_filestream, buffer, buflen);
+        i = count;
+        if (count < 0)
+        {
+            PX4_INFO("UART TX error");
+        }
+    }
+
+
+   // close(NULL);
+
+    return i;
+}
+
+
+off_t Toby::seek(device::file_t *filp, off_t offset, int whence){
+    PX4_INFO("seek() is called");
+
+    return ::device::CDev::seek(filp,offset,whence);
+
+
+
+}
+
+
+
+
 int
 Toby::ioctl(device::file_t *filp, int cmd, unsigned long arg)
 {
@@ -104,10 +228,22 @@ Toby::ioctl(device::file_t *filp, int cmd, unsigned long arg)
     //ein versuch :
     int i = ::device::CDev::ioctl(filp,cmd,arg);
    // CDev::ioctl(*filp, cmd,arg);
-sleep(2);
 PX4_INFO("ioctl() return %d",i);
 return i;
 }
+
+
+int	Toby::poll(device::file_t *filp, struct pollfd *fds, bool setup){
+
+
+    PX4_INFO("poll() is called");
+    return ::device::CDev::poll(filp, fds,setup);
+
+}
+
+
+
+
 
 int
 toby_init(){
@@ -187,4 +323,16 @@ out:
 }
 
 
+void *doClose(void *arg)
+{
+
+
+    PX4_INFO("Thread started");
+
+    PX4_INFO("Thread closed Uart");
+
+    return NULL;
+
+
+}
 
