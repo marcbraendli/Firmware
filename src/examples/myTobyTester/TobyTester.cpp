@@ -84,7 +84,7 @@ int TobyTester_main(int argc, char *argv[])
 
         if (uart0_filestream != -1)
         {
-            int count = write(uart0_filestream, tx_buffer, sizeof(tx_buffer)/sizeof(tx_buffer[0]));
+            int count = write(uart0_filestream, tx_buffer, 13);
             if (count < 0)
             {
                 PX4_INFO("UART TX error");

@@ -115,6 +115,8 @@ int Toby::open(device::file_t *filp){
 
 
     //*******************************************************************
+    int l = ::device::CDev::open(filp);
+    PX4_INFO("CDev:Open() mit return %d",l);
 
     uart0_filestream =px4_open("/dev/ttyS6", O_WRONLY );
 
@@ -131,6 +133,7 @@ int Toby::open(device::file_t *filp){
     options.c_cflag = CS8;
     options.c_iflag = IGNPAR;
     options.c_oflag = 0;
+    options.c_oflag = O_NONBLOCK;
     //options.c_lflag &= ~(ECHO | ECHONL | ICANON | IEXTEN | ISIG);
     //options.c_lflag = ECHO;
 
@@ -156,19 +159,22 @@ int Toby::open(device::file_t *filp){
 
 int	Toby::close(device::file_t *filp){
     PX4_INFO("close() is called, we close with %d",uart0_filestream);
-   // ::device::CDev::close(filp);
+    ::device::CDev::close(filp);
     pid_t x = ::getpid();
     PX4_INFO("actual thread id : %d",x);
     tcflush(uart0_filestream, TCIFLUSH);
 
-    /*
-    pthread_t Toby_thread;
-    pthread_create(&Toby_thread, NULL, doClose, NULL);
-    pthread_join(Toby_thread, NULL);
-    */
+    //pthread_t Toby_thread;
+   // pthread_create(&Toby_thread, NULL, doClose, NULL);
+
 
    // int i = set_flowcontrol(uart0_filestream,1);
     PX4_INFO("set_flowcontrol returns with %d");
+    tcgetattr(uart0_filestream, &options);
+
+
+    this->unlock();
+
     px4_close(uart0_filestream);
 
 
@@ -236,7 +242,6 @@ Toby::ioctl(device::file_t *filp, int cmd, unsigned long arg)
 
     //ein versuch :
     int i = ::device::CDev::ioctl(filp,cmd,arg);
-   // CDev::ioctl(*filp, cmd,arg);
 PX4_INFO("ioctl() return %d",i);
 return i;
 }
@@ -339,8 +344,10 @@ void *doClose(void *arg)
 
 
     PX4_INFO("Thread started");
-
+    pid_t x = ::getpid();
+    PX4_INFO("actual thread id : %d",x);
     PX4_INFO("Thread closed Uart");
+    px4_close(4);
 
     return NULL;
 
