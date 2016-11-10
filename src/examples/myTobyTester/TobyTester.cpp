@@ -92,10 +92,8 @@ int TobyTester_main(int argc, char *argv[])
         }
 
 
-        open()
 
-        px4_close(uart0_filestream);
-
+xxys
          PX4_INFO("Exit");
 
 

@@ -69,15 +69,17 @@ __END_DECLS
 
 extern "C" __EXPORT int toby_main(int argc, char *argv[]);
 
+
+int set_flowcontrol(int fd, int control);
+void *doClose(void *arg);
 int toby_init();
 
-void *doClose(void *arg);
 
 Toby::Toby() :
 #ifdef __PX4_NUTTX
     CDev("Toby", "/dev/toby")
 #else
-    VDev("toby", LED0_DEVICE_PATH)
+    VDev("toby", "/dev/toby")
 #endif
 {
 	// force immediate init/device registration
@@ -114,7 +116,7 @@ int Toby::open(device::file_t *filp){
 
     //*******************************************************************
 
-    uart0_filestream =::open("/dev/ttyS6", O_RDWR |O_NOCTTY );
+    uart0_filestream =px4_open("/dev/ttyS6", O_WRONLY );
 
     if(uart0_filestream == -1)
     {
@@ -134,6 +136,7 @@ int Toby::open(device::file_t *filp){
 
     cfsetispeed(&options, B9600);
     cfsetospeed(&options, B9600);
+    set_flowcontrol(uart0_filestream,0);
 
     tcflush(uart0_filestream, TCIFLUSH);
 
@@ -146,23 +149,27 @@ int Toby::open(device::file_t *filp){
     //*******************************************************************
 
 
-    int i = ::device::CDev::open(filp);
-    return i;
+   // int i = ::device::CDev::open(filp);
+    return 0;
 }
 
 
 int	Toby::close(device::file_t *filp){
     PX4_INFO("close() is called, we close with %d",uart0_filestream);
-    ::device::CDev::close(filp);
+   // ::device::CDev::close(filp);
     pid_t x = ::getpid();
     PX4_INFO("actual thread id : %d",x);
+    tcflush(uart0_filestream, TCIFLUSH);
 
     /*
     pthread_t Toby_thread;
     pthread_create(&Toby_thread, NULL, doClose, NULL);
     pthread_join(Toby_thread, NULL);
     */
-   // ::close(uart0_filestream);
+
+    int i = set_flowcontrol(uart0_filestream,1);
+    PX4_INFO("set_flowcontrol returns with %d",i);
+    px4_close(uart0_filestream);
 
 
    PX4_INFO("uart closed mit %d");
@@ -187,18 +194,20 @@ ssize_t	Toby::write(device::file_t *filp, const char *buffer, size_t buflen){
 
     PX4_INFO("write() is called");
 
-    int i = ::device::CDev::write(filp, buffer, buflen);
+    int i = 0;
+    //i = ::device::CDev::write(filp, buffer, buflen);
 
     if (uart0_filestream != -1)
     {
         PX4_INFO("::write() uart_filstream %d",uart0_filestream);
 
-        int count = ::write(uart0_filestream, buffer, buflen);
+        int count = px4_write(uart0_filestream, buffer, buflen);
         i = count;
         if (count < 0)
         {
             PX4_INFO("UART TX error");
         }
+
     }
 
 
@@ -323,6 +332,8 @@ out:
 }
 
 
+//****************************hilfsfunktionen********************************
+
 void *doClose(void *arg)
 {
 
@@ -334,5 +345,26 @@ void *doClose(void *arg)
     return NULL;
 
 
+}
+
+int set_flowcontrol(int fd, int control)
+{
+    struct termios tty;
+    memset(&tty, 0, sizeof tty);
+    if (tcgetattr(fd, &tty) != 0)
+    {
+        perror("error from tggetattr");
+        return -1;
+    }
+
+    if(control) tty.c_cflag |= CRTSCTS;
+    else tty.c_cflag &= ~CRTSCTS;
+
+    if (tcsetattr(fd, TCSANOW, &tty) != 0)
+    {
+        perror("error setting term attributes");
+        return -1;
+    }
+    return 0;
 }
 
