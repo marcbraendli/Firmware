@@ -92,8 +92,9 @@ int TobyTester_main(int argc, char *argv[])
         }
 
 
+        sleep(5);
+        ::close(uart0_filestream);
 
-xxys
          PX4_INFO("Exit");
 
 

@@ -167,8 +167,8 @@ int	Toby::close(device::file_t *filp){
     pthread_join(Toby_thread, NULL);
     */
 
-    int i = set_flowcontrol(uart0_filestream,1);
-    PX4_INFO("set_flowcontrol returns with %d",i);
+   // int i = set_flowcontrol(uart0_filestream,1);
+    PX4_INFO("set_flowcontrol returns with %d");
     px4_close(uart0_filestream);
 
 
