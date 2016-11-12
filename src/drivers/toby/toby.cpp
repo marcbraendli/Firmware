@@ -118,7 +118,7 @@ int Toby::open(device::file_t *filp){
     int l = ::device::CDev::open(filp);
     PX4_INFO("CDev:Open() mit return %d",l);
 
-    uart0_filestream =px4_open("/dev/ttyS6", O_WRONLY );
+    uart0_filestream =px4_open("/dev/ttyS6", O_RDWR |O_NOCTTY);
 
     if(uart0_filestream == -1)
     {
@@ -131,14 +131,19 @@ int Toby::open(device::file_t *filp){
 
     //options.c_cflag &= ~(CSIZE | PARENB);
     options.c_cflag = CS8;
-    options.c_iflag = IGNPAR;
+    //options.c_iflag = IGNPAR;
+
+    options.c_iflag&= ~(IGNBRK | BRKINT | ICRNL | INLCR | PARMRK | INPCK | ISTRIP | IXON);
+
     options.c_oflag = 0;
-    options.c_oflag = O_NONBLOCK;
-    //options.c_lflag &= ~(ECHO | ECHONL | ICANON | IEXTEN | ISIG);
+    //options.c_oflag = O_NONBLOCK;
+    options.c_lflag &= ~(ECHO | ECHONL | ICANON | IEXTEN | ISIG);
     //options.c_lflag = ECHO;
 
-    cfsetispeed(&options, B9600);
-    cfsetospeed(&options, B9600);
+    options.c_cflag &= ~(CSTOPB | PARENB);
+
+    cfsetispeed(&options, B57600);
+    cfsetospeed(&options, B57600);
     set_flowcontrol(uart0_filestream,0);
 
     tcflush(uart0_filestream, TCIFLUSH);
@@ -164,21 +169,21 @@ int	Toby::close(device::file_t *filp){
     PX4_INFO("actual thread id : %d",x);
     tcflush(uart0_filestream, TCIFLUSH);
 
-    //pthread_t Toby_thread;
-   // pthread_create(&Toby_thread, NULL, doClose, NULL);
+    pthread_t Toby_thread;
+    pthread_create(&Toby_thread, NULL, doClose, NULL);
 
 
    // int i = set_flowcontrol(uart0_filestream,1);
-    PX4_INFO("set_flowcontrol returns with %d");
-    tcgetattr(uart0_filestream, &options);
+   // PX4_INFO("set_flowcontrol returns with %d");
+    //tcgetattr(uart0_filestream, &options);
 
 
-    this->unlock();
+    //this->unlock();
 
-    px4_close(uart0_filestream);
+    //px4_close(uart0_filestream);
 
 
-   PX4_INFO("uart closed mit %d");
+   PX4_INFO("toby::close() terminate");
 
    return 0;
 
@@ -193,19 +198,20 @@ ssize_t	Toby::read(device::file_t *filp, char *buffer, size_t buflen)
     PX4_INFO("read() is called");
 
     ::device::CDev::read(filp,buffer,buflen);
+
     return 0;
 }
 
 ssize_t	Toby::write(device::file_t *filp, const char *buffer, size_t buflen){
 
-    PX4_INFO("write() is called");
+   // PX4_INFO("write() is called");
 
     int i = 0;
     //i = ::device::CDev::write(filp, buffer, buflen);
 
     if (uart0_filestream != -1)
     {
-        PX4_INFO("::write() uart_filstream %d",uart0_filestream);
+ //       PX4_INFO("::write() uart_filstream %d",uart0_filestream);
 
         int count = px4_write(uart0_filestream, buffer, buflen);
         i = count;
@@ -238,23 +244,27 @@ off_t Toby::seek(device::file_t *filp, off_t offset, int whence){
 int
 Toby::ioctl(device::file_t *filp, int cmd, unsigned long arg)
 {
-    PX4_INFO("ioctl mit cmd:  %d",cmd);
+  //  PX4_INFO("ioctl mit cmd:  %d",cmd);
 
     //ein versuch :
-    int i = ::device::CDev::ioctl(filp,cmd,arg);
-PX4_INFO("ioctl() return %d",i);
-return i;
+    //int i = ::device::CDev::ioctl(filp,cmd,arg);
+//PX4_INFO("ioctl() return %d",i);
+
+return ::ioctl(uart0_filestream,cmd,arg);
 }
 
-
+/*
 int	Toby::poll(device::file_t *filp, struct pollfd *fds, bool setup){
 
 
     PX4_INFO("poll() is called");
-    return ::device::CDev::poll(filp, fds,setup);
+   // return ::device::CDev::poll(filp, fds,setup);
+
+    return 1;
+
 
 }
-
+*/
 
 
 
@@ -346,8 +356,9 @@ void *doClose(void *arg)
     PX4_INFO("Thread started");
     pid_t x = ::getpid();
     PX4_INFO("actual thread id : %d",x);
-    PX4_INFO("Thread closed Uart");
-    px4_close(4);
+    int i = px4_close(4);
+
+    PX4_INFO("Thread closed Uart with %d",i);
 
     return NULL;
 

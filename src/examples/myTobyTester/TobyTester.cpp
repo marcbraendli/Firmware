@@ -56,25 +56,26 @@ int TobyTester_main(int argc, char *argv[])
         }
         PX4_INFO("open return value /dev/toby: %d",uart0_filestream);
 
-        struct termios options= {};
-        tcgetattr(uart0_filestream, &options);
+        //struct termios options= {};
 
-        //options.c_cflag &= ~(CSIZE | PARENB);
-        options.c_cflag = CS8;
-        options.c_iflag = IGNPAR;
-        options.c_oflag = 0;
-        //options.c_lflag &= ~(ECHO | ECHONL | ICANON | IEXTEN | ISIG);
-        //options.c_lflag = ECHO;
+        //tcgetattr(uart0_filestream, &options);
 
-        cfsetispeed(&options, B9600);
-        cfsetospeed(&options, B9600);
+        //-//options.c_cflag &= ~(CSIZE | PARENB);
+        //options.c_cflag = CS8;
+        //options.c_iflag = IGNPAR;
+        //options.c_oflag = 0;
+        //-//options.c_lflag &= ~(ECHO | ECHONL | ICANON | IEXTEN | ISIG);
+        //-//options.c_lflag = ECHO;
 
-        tcflush(uart0_filestream, TCIFLUSH);
+        //cfsetispeed(&options, B9600);
+        //cfsetospeed(&options, B9600);
 
-        if(tcsetattr(uart0_filestream, TCSANOW, &options)<0)
-        {
-            PX4_WARN("Wrong Options");
-        }
+        //tcflush(uart0_filestream, TCIFLUSH);
+
+        //if(tcsetattr(uart0_filestream, TCSANOW, &options)<0)
+        //{
+         //   PX4_WARN("Wrong Options");
+        //}
 
 
 

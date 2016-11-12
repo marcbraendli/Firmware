@@ -275,7 +275,7 @@ CDev::ioctl(file_t *filp, int cmd, unsigned long arg)
 		break;
 	}
 
-    PX4_INFO("ioctl() nach switch case");
+  //  PX4_INFO("ioctl() nach switch case");
 
 	/* try the superclass. The different ioctl() function form
 	 * means we need to copy arg */

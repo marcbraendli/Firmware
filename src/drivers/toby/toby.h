@@ -28,7 +28,7 @@ public:
 
 
     virtual int		ioctl(device::file_t *filp, int cmd, unsigned long arg);
-    virtual int	poll(device::file_t *filp, struct pollfd *fds, bool setup);
+   // virtual int	poll(device::file_t *filp, struct pollfd *fds, bool setup);
 
 private:
     int uart0_filestream;
