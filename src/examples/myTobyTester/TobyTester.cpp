@@ -39,6 +39,9 @@ extern "C" __EXPORT int TobyTester_main(int argc, char *argv[]);
 /**
  * Function for analizing architecture
  */
+
+void myInit();
+
 int TobyTester_main(int argc, char *argv[])
 {
 
@@ -81,6 +84,7 @@ int TobyTester_main(int argc, char *argv[])
 
 
 
+        //*************receive code ******************************
         unsigned char tx_buffer[]={"Hallo Michael"};
 
         if (uart0_filestream != -1)
@@ -92,6 +96,59 @@ int TobyTester_main(int argc, char *argv[])
             }
         }
 
+        px4_pollfd_struct_t fds[1];
+        fds[0].fd = uart0_filestream;
+        fds[0].events = POLLIN;
+        unsigned char rx_buffer[50]={};
+        int error_counter = 0;
+
+
+
+        for(int i=0;i<10;i++)
+            {
+                //sleep(1);
+                int poll_ret = px4_poll(fds, 1, 2000);
+
+                PX4_INFO("poll_ret = %i!",poll_ret);
+
+                /* handle the poll result */
+                if (poll_ret == 0) {
+                    /* this means none of our providers is giving us data */
+                    PX4_INFO("Got no datas!");
+
+                } else if (poll_ret < 0) {
+                    /* this is seriously bad - should be an emergency */
+                    if (error_counter < 10 || error_counter % 50 == 0) {
+                        /* use a counter to prevent flooding (and slowing us down) */
+                        PX4_ERR("ERROR return value from poll(): %d", poll_ret);
+                    }
+
+                    error_counter++;
+
+                } else {
+
+                    if (fds[0].revents & POLLIN) {
+                        //fds[0].revents=0;
+                        /* obtained data for the first file descriptor */
+                        //PX4_INFO("Something to Receive!");
+                        /* copy sensors raw data into local buffer */
+
+                        int count = read(uart0_filestream, rx_buffer,40);
+                        if (count < 0)
+                        {
+                            PX4_ERR("UART RX error");
+                        }
+
+                        PX4_INFO("Received: %s", rx_buffer);
+
+
+                        /* set att and publish this information for other apps */
+
+                    }
+                }
+
+            }
+
 
         sleep(5);
         ::close(uart0_filestream);
@@ -100,6 +157,11 @@ int TobyTester_main(int argc, char *argv[])
 
 
     return 0;
+}
+
+
+void myInit(){
+
 }
 
 

@@ -118,6 +118,9 @@ int Toby::open(device::file_t *filp){
     int l = ::device::CDev::open(filp);
     PX4_INFO("CDev:Open() mit return %d",l);
 
+
+
+    //******************************set options and open uart device************
     uart0_filestream =px4_open("/dev/ttyS6", O_RDWR |O_NOCTTY);
 
     if(uart0_filestream == -1)
@@ -144,6 +147,11 @@ int Toby::open(device::file_t *filp){
 
     cfsetispeed(&options, B57600);
     cfsetospeed(&options, B57600);
+
+
+//    cfsetispeed(&options, B9600);
+  //  cfsetospeed(&options, B9600);
+
     set_flowcontrol(uart0_filestream,0);
 
     tcflush(uart0_filestream, TCIFLUSH);
@@ -154,11 +162,15 @@ int Toby::open(device::file_t *filp){
     }
 
 
+   union DeviceId deviceID =  CDev::Device::_device_id;
+
+   PX4_INFO("my DeviceID = %i", deviceID.devid);
+
     //*******************************************************************
 
 
    // int i = ::device::CDev::open(filp);
-    return 0;
+    return l;
 }
 
 
@@ -195,11 +207,13 @@ int	Toby::close(device::file_t *filp){
 
 ssize_t	Toby::read(device::file_t *filp, char *buffer, size_t buflen)
 {
-    PX4_INFO("read() is called");
+    //PX4_INFO("read() is called");
 
     ::device::CDev::read(filp,buffer,buflen);
 
-    return 0;
+    int i = px4_read(uart0_filestream,buffer,buflen);
+
+    return i;
 }
 
 ssize_t	Toby::write(device::file_t *filp, const char *buffer, size_t buflen){
@@ -253,18 +267,32 @@ Toby::ioctl(device::file_t *filp, int cmd, unsigned long arg)
 return ::ioctl(uart0_filestream,cmd,arg);
 }
 
-/*
+
 int	Toby::poll(device::file_t *filp, struct pollfd *fds, bool setup){
 
 
-    PX4_INFO("poll() is called");
-   // return ::device::CDev::poll(filp, fds,setup);
+    px4_pollfd_struct_t fds1[1];
+    fds1[0].fd = uart0_filestream;
+    fds1[0].events = POLLIN;
 
-    return 1;
+
+
+
+
+    int poll_return = px4_poll(fds1,1,500);
+    if(poll_return >0){
+        poll_notify(POLLIN);
+        poll_notify_one(fds, POLLIN);
+
+    }
+  //  PX4_INFO("poll() is called with return %d",poll_return);
+
+
+    return 10;
 
 
 }
-*/
+
 
 
 
