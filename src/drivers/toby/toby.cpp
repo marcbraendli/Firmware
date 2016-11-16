@@ -79,6 +79,7 @@ Toby::Toby() :
 #ifdef __PX4_NUTTX
     CDev("Toby", "/dev/toby")
 #else
+    //Übernommen aus anderen Treiberimplementationen
     VDev("toby", "/dev/toby")
 #endif
 {
@@ -92,9 +93,7 @@ Toby::~Toby()
 
 
 
-
-int
-Toby::init()
+int Toby::init()
 {
     PX4_INFO("TOBY::init");
 #ifdef __PX4_NUTTX
@@ -109,6 +108,8 @@ Toby::init()
 
 
 int Toby::open(device::file_t *filp){
+
+    //Debugging
     PX4_INFO("open() is called");
         pid_t x = ::getpid();
         PX4_INFO("actual thread id : %d",x);
@@ -120,7 +121,9 @@ int Toby::open(device::file_t *filp){
 
 
 
-    //******************************set options and open uart device************
+    //***********************set options and open uart device************
+
+    //todo: Übernahme der Optionen termios des caller ... but how?
     uart0_filestream =px4_open("/dev/ttyS6", O_RDWR |O_NOCTTY);
 
     if(uart0_filestream == -1)
@@ -135,9 +138,7 @@ int Toby::open(device::file_t *filp){
     //options.c_cflag &= ~(CSIZE | PARENB);
     options.c_cflag = CS8;
     //options.c_iflag = IGNPAR;
-
     options.c_iflag&= ~(IGNBRK | BRKINT | ICRNL | INLCR | PARMRK | INPCK | ISTRIP | IXON);
-
     options.c_oflag = 0;
     //options.c_oflag = O_NONBLOCK;
     options.c_lflag &= ~(ECHO | ECHONL | ICANON | IEXTEN | ISIG);
@@ -149,11 +150,10 @@ int Toby::open(device::file_t *filp){
     cfsetospeed(&options, B57600);
 
 
-//    cfsetispeed(&options, B9600);
+  //  cfsetispeed(&options, B9600);
   //  cfsetospeed(&options, B9600);
 
     set_flowcontrol(uart0_filestream,0);
-
     tcflush(uart0_filestream, TCIFLUSH);
 
     if(tcsetattr(uart0_filestream, TCSANOW, &options)<0)
@@ -162,14 +162,14 @@ int Toby::open(device::file_t *filp){
     }
 
 
-   union DeviceId deviceID =  CDev::Device::_device_id;
+   //Debugging :
+    union DeviceId deviceID =  CDev::Device::_device_id;
+    PX4_INFO("my DeviceID = %i", deviceID.devid);
 
-   PX4_INFO("my DeviceID = %i", deviceID.devid);
 
     //*******************************************************************
 
 
-   // int i = ::device::CDev::open(filp);
     return l;
 }
 
@@ -177,40 +177,38 @@ int Toby::open(device::file_t *filp){
 int	Toby::close(device::file_t *filp){
     PX4_INFO("close() is called, we close with %d",uart0_filestream);
     ::device::CDev::close(filp);
+
+    //for Debugging
     pid_t x = ::getpid();
     PX4_INFO("actual thread id : %d",x);
+    //**************************************
+
+
     tcflush(uart0_filestream, TCIFLUSH);
 
+    //force a thread to close the uart
     pthread_t Toby_thread;
     pthread_create(&Toby_thread, NULL, doClose, NULL);
 
 
-   // int i = set_flowcontrol(uart0_filestream,1);
-   // PX4_INFO("set_flowcontrol returns with %d");
+    //int i = set_flowcontrol(uart0_filestream,1);
+    //PX4_INFO("set_flowcontrol returns with %d");
     //tcgetattr(uart0_filestream, &options);
-
-
     //this->unlock();
-
     //px4_close(uart0_filestream);
 
+    //for Debugging
+    PX4_INFO("toby::close() terminate");
 
-   PX4_INFO("toby::close() terminate");
-
-   return 0;
-
-
-
-
+    //return value not valid yet!
+    return 0;
 }
 
 
 ssize_t	Toby::read(device::file_t *filp, char *buffer, size_t buflen)
 {
     //PX4_INFO("read() is called");
-
     ::device::CDev::read(filp,buffer,buflen);
-
     int i = px4_read(uart0_filestream,buffer,buflen);
 
     return i;
@@ -218,28 +216,27 @@ ssize_t	Toby::read(device::file_t *filp, char *buffer, size_t buflen)
 
 ssize_t	Toby::write(device::file_t *filp, const char *buffer, size_t buflen){
 
-   // PX4_INFO("write() is called");
+    //todo : effizienter implementieren, but how?
 
-    int i = 0;
-    //i = ::device::CDev::write(filp, buffer, buflen);
+    //Debugging
+    // PX4_INFO("write() is called");
 
+    int count = 0;
     if (uart0_filestream != -1)
     {
  //       PX4_INFO("::write() uart_filstream %d",uart0_filestream);
 
-        int count = px4_write(uart0_filestream, buffer, buflen);
-        i = count;
+
+        count = px4_write(uart0_filestream, buffer, buflen);
         if (count < 0)
         {
+            //Debugging
             PX4_INFO("UART TX error");
         }
 
     }
-
-
    // close(NULL);
-
-    return i;
+    return count;
 }
 
 
@@ -247,8 +244,6 @@ off_t Toby::seek(device::file_t *filp, off_t offset, int whence){
     PX4_INFO("seek() is called");
 
     return ::device::CDev::seek(filp,offset,whence);
-
-
 
 }
 
@@ -258,13 +253,13 @@ off_t Toby::seek(device::file_t *filp, off_t offset, int whence){
 int
 Toby::ioctl(device::file_t *filp, int cmd, unsigned long arg)
 {
-  //  PX4_INFO("ioctl mit cmd:  %d",cmd);
-
+    //PX4_INFO("ioctl mit cmd:  %d",cmd);
     //ein versuch :
     //int i = ::device::CDev::ioctl(filp,cmd,arg);
-//PX4_INFO("ioctl() return %d",i);
+    //PX4_INFO("ioctl() return %d",i);
 
-return ::ioctl(uart0_filestream,cmd,arg);
+    //ioctl direct to uart
+    return ::ioctl(uart0_filestream,cmd,arg);
 }
 
 
@@ -275,17 +270,14 @@ int	Toby::poll(device::file_t *filp, struct pollfd *fds, bool setup){
     fds1[0].fd = uart0_filestream;
     fds1[0].events = POLLIN;
 
-
-
-
-
     int poll_return = px4_poll(fds1,1,500);
     if(poll_return >0){
+        //notify the caller
         poll_notify(POLLIN);
         poll_notify_one(fds, POLLIN);
-
     }
-  //  PX4_INFO("poll() is called with return %d",poll_return);
+
+    //  PX4_INFO("poll() is called with return %d",poll_return);
 
 
     return 10;
@@ -297,10 +289,14 @@ int	Toby::poll(device::file_t *filp, struct pollfd *fds, bool setup){
 
 
 
-int
-toby_init(){
+int toby_init(){
+
+    //für Debuggingzwecke
     PX4_INFO("toby_init");
     return 0;
+
+    //todo : initalization toby L210 Module with AT-Command
+
 }
 
 namespace
@@ -313,15 +309,18 @@ toby_main(int argc, char *argv[])
 {
     /* set to default */
     const char *device_name = TOBY_DEVICE_PATH;
-   // const char *device_name2 = nullptr;
+
+    //Load start parameter laden
     int myoptind = 1;
     const char *verb = argv[myoptind];
 
 
-
-
     if (argc < 2) {
-        goto out;
+
+        //stop test reset und status in planung
+        PX4_ERR("unrecognized command, try 'start', 'stop', 'test', 'reset' or 'status'");
+        PX4_ERR("[-d " TOBY_DEVICE_PATH "][-f (for enabling fake)][-s (to enable sat info)]");
+        return 1;
     }
 
     /*
@@ -334,13 +333,16 @@ toby_main(int argc, char *argv[])
             return 1;
         }
 
+
+        //"einmalige" Instanzierung
         gToby = new Toby();
-
-
 
         return 0;
     }
 
+
+    //todo : Alle input parameter handler implementieren
+    // Stubs für andere start-argumente
     if (!strcmp(argv[1], "stop")) {
     }
 
@@ -366,12 +368,11 @@ toby_main(int argc, char *argv[])
 
     }
 
+
+    //return value is not valid yet
     return 0;
 
-out:
-    PX4_ERR("unrecognized command, try 'start', 'stop', 'test', 'reset' or 'status'");
-    PX4_ERR("[-d " TOBY_DEVICE_PATH "][-f (for enabling fake)][-s (to enable sat info)]");
-    return 1;
+
 }
 
 
