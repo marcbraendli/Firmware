@@ -1,7 +1,8 @@
 
 /**
- * @file px4_daemon_app.c
- * daemon application example for PX4 autopilot
+ * @file TobyTester.cpp
+ * Test for toby-Interface
+ *
  *
  * @author Example User <mail@example.com>
  */
@@ -33,6 +34,9 @@
 #include <drivers/toby/toby.h>
 
 
+
+
+
 //extern int main(int argc, char **argv);
 extern "C" __EXPORT int TobyTester_main(int argc, char *argv[]);
 
@@ -45,132 +49,28 @@ extern "C" __EXPORT int TobyTester_main(int argc, char *argv[]);
 //Function prototyping for Tests:
 namespace TobyTester{
 
-    void testToby();
-    int openToby();
-    void writeToby(int uart0_filestream);
-    void readToby(int uart0_filestream);
-    void closeToby(int uart0_filestream);
+void testToby();
+int openToby();
+void writeToby(int uart0_filestream);
+void readToby(int uart0_filestream);
+void closeToby(int uart0_filestream);
 }
 
 
+/*                      INFO
+ *
+ * Assert's brechen nur ab und geben keine Rückmeldung
+ * Eine eigene Assert Definition könnte zu diesem Zweck
+ * definiert werden, ist bis jetzt aber nicht umgesetzt
+ *
+ */
 
 int TobyTester_main(int argc, char *argv[])
 {
 
     PX4_INFO("This is a Toby Test App");
-
-
-        int uart0_filestream =-1;
-        uart0_filestream =::open("/dev/toby", O_RDWR |O_NOCTTY | O_NDELAY);
-
-        if(uart0_filestream == -1)
-        {
-            PX4_INFO("Unable to Open /dev/toby");
-
-        }
-        PX4_INFO("open return value /dev/toby: %d",uart0_filestream);
-
-        //struct termios options= {};
-
-        //tcgetattr(uart0_filestream, &options);
-
-        //-//options.c_cflag &= ~(CSIZE | PARENB);
-        //options.c_cflag = CS8;
-        //options.c_iflag = IGNPAR;
-        //options.c_oflag = 0;
-        //-//options.c_lflag &= ~(ECHO | ECHONL | ICANON | IEXTEN | ISIG);
-        //-//options.c_lflag = ECHO;
-
-        //cfsetispeed(&options, B9600);
-        //cfsetospeed(&options, B9600);
-
-        //tcflush(uart0_filestream, TCIFLUSH);
-
-        //if(tcsetattr(uart0_filestream, TCSANOW, &options)<0)
-        //{
-         //   PX4_WARN("Wrong Options");
-        //}
-
-
-
-
-
-        //*************receive and write  code ******************************
-        unsigned char tx_buffer[]={"Hallo Michael"};
-
-        if (uart0_filestream != -1)
-        {
-            int count = write(uart0_filestream, tx_buffer, 13);
-            if (count < 0)
-            {
-                PX4_INFO("UART TX error");
-            }
-        }
-
-        px4_pollfd_struct_t fds[1];
-        fds[0].fd = uart0_filestream;
-        fds[0].events = POLLIN;
-        unsigned char rx_buffer[50]={};
-        int error_counter = 0;
-
-
-
-        for(int i=0;i<10;i++)
-            {
-                //sleep(1);
-                int poll_ret = px4_poll(fds, 1, 2000);
-
-                PX4_INFO("poll_ret = %i!",poll_ret);
-
-                /* handle the poll result */
-                if (poll_ret == 0) {
-                    /* this means none of our providers is giving us data */
-                    PX4_INFO("Got no datas!");
-
-                } else if (poll_ret < 0) {
-                    /* this is seriously bad - should be an emergency */
-                    if (error_counter < 10 || error_counter % 50 == 0) {
-                        /* use a counter to prevent flooding (and slowing us down) */
-                        PX4_ERR("ERROR return value from poll(): %d", poll_ret);
-                    }
-
-                    error_counter++;
-
-                } else {
-
-                    if (fds[0].revents & POLLIN) {
-                        //fds[0].revents=0;
-                        /* obtained data for the first file descriptor */
-                        //PX4_INFO("Something to Receive!");
-                        /* copy sensors raw data into local buffer */
-
-                        int count = read(uart0_filestream, rx_buffer,40);
-                        if (count < 0)
-                        {
-                            PX4_ERR("UART RX error");
-                        }
-
-                        PX4_INFO("Received: %s", rx_buffer);
-
-
-                        /* set att and publish this information for other apps */
-
-                    }
-                }
-
-            }
-
-
-        sleep(5);
-        ::close(uart0_filestream);
-
-
-
-        TobyTester::testToby();
-
-
-
-         PX4_INFO("Exit");
+    TobyTester::testToby();
+    PX4_INFO("Exit");
 
 
     return 0;
@@ -185,7 +85,7 @@ void testToby(){
 
 
     //start the toby-driver direct in the Unittest : Not possible yet
-/*
+    /*
     int argc = 1;
     char *argv[2];
     char a[] = {"start"};
@@ -247,7 +147,7 @@ int openToby(){
     PX4_INFO("open return value /dev/toby: %d",uart0_filestream);
 
 
-  //  ASSERT(uart0_filestream != -1);
+    //  ASSERT(uart0_filestream != -1);
 
     return uart0_filestream;
 }
@@ -279,41 +179,41 @@ void readToby(int uart0_filestream){
 
 
     for(int i=0;i<10;i++)
-        {
-            //sleep(1);
-            int poll_ret = px4_poll(fds, 1, 2000);
+    {
+        //sleep(1);
+        int poll_ret = px4_poll(fds, 1, 2000);
 
-            PX4_INFO("poll_ret = %i!",poll_ret);
+        PX4_INFO("poll_ret = %i!",poll_ret);
 
-            /* handle the poll result */
-            if (poll_ret == 0) {
+        /* handle the poll result */
+        if (poll_ret == 0) {
 
-                //no data received
-                PX4_INFO("Got no datas!");
+            //no data received
+            PX4_INFO("Got no datas!");
 
-            } else if (poll_ret < 0) {
-                // bad case / Error
-                ASSERT(false);
+        } else if (poll_ret < 0) {
+            // bad case / Error
+            ASSERT(false);
 
-            } else {
+        } else {
 
-                if (fds[0].revents & POLLIN) {
+            if (fds[0].revents & POLLIN) {
 
-                    //load received data into rx_bufer
-                    int count = read(uart0_filestream, rx_buffer,40);
-                    if (count < 0)
-                    {
-                        PX4_ERR("UART RX error");
-                        ASSERT(false);
-                    }
-
-                    //visual test required
-                    PX4_INFO("Received: %s", rx_buffer);
-
+                //load received data into rx_bufer
+                int count = read(uart0_filestream, rx_buffer,40);
+                if (count < 0)
+                {
+                    PX4_ERR("UART RX error");
+                    ASSERT(false);
                 }
-            }
 
+                //visual test required
+                PX4_INFO("Received: %s", rx_buffer);
+
+            }
         }
+
+    }
 
 }
 

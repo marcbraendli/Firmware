@@ -1,5 +1,6 @@
 #include <drivers/device/device.h>
 #include <px4_config.h>
+#include <drivers/device/ringbuffer.h>
 
 #include <drivers/device/device_nuttx.h>
 #include <termios.h>
@@ -32,7 +33,7 @@ public:
 
 private:
     int uart0_filestream;
-
+    ringbuffer::RingBuffer *writeBuffer;
     struct termios options= {};
 
 

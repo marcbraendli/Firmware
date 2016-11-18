@@ -41,6 +41,8 @@
 
 #include "toby.h"
 #include <drivers/drv_toby.h>
+#include <drivers/device/ringbuffer.h>
+
 #include <stdio.h>
 #include <termios.h>
 
@@ -70,9 +72,12 @@ __END_DECLS
 extern "C" __EXPORT int toby_main(int argc, char *argv[]);
 
 
+/* Hilfs und Testfunktionen deklaration evt später als private in Klasse implementieren!*/
+
 int set_flowcontrol(int fd, int control);
 void *doClose(void *arg);
 int toby_init();
+void ringBufferTest();
 
 
 Toby::Toby() :
@@ -96,6 +101,8 @@ Toby::~Toby()
 int Toby::init()
 {
     PX4_INFO("TOBY::init");
+    ringBufferTest();   //Test
+    writeBuffer = new ringbuffer::RingBuffer(20,sizeof(char));
 #ifdef __PX4_NUTTX
 	CDev::init();
 #else
@@ -389,6 +396,7 @@ void *doClose(void *arg)
 
     PX4_INFO("Thread closed Uart with %d",i);
 
+
     return NULL;
 
 
@@ -413,5 +421,19 @@ int set_flowcontrol(int fd, int control)
         return -1;
     }
     return 0;
+}
+
+void ringBufferTest(){
+
+
+    unsigned char tx_buffer[]={"Hallo Michael"};
+
+    ringbuffer::RingBuffer *x = new ringbuffer::RingBuffer(10,sizeof(char));
+    x->put('h');
+
+
+    x->get(tx_buffer[1]);
+
+    PX4_INFO("Received: %s", tx_buffer);
 }
 
