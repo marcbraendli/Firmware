@@ -33,13 +33,16 @@
 #include <termios.h>
 #include <drivers/toby/toby.h>
 
+#include <modules/mavlink/mavlink_main.h>
+
+
 
 
 
 
 //extern int main(int argc, char **argv);
 extern "C" __EXPORT int TobyTester_main(int argc, char *argv[]);
-
+int testTastMavlink;
 
 /**
  * Function for analizing architecture
@@ -60,8 +63,9 @@ void closeToby(int uart0_filestream);
 /*                      INFO
  *
  * Assert's brechen nur ab und geben keine Rückmeldung
- * Eine eigene Assert Definition könnte zu diesem Zweck
- * definiert werden, ist bis jetzt aber nicht umgesetzt
+ * Eine eigene Assert Definition mit Output könnte zu
+ * diesem Zweck definiert werden, ist bis jetzt aber nicht
+ * umgesetzt
  *
  */
 
@@ -69,10 +73,40 @@ int TobyTester_main(int argc, char *argv[])
 {
 
     PX4_INFO("This is a Toby Test App");
-    TobyTester::testToby();
-    PX4_INFO("Exit");
+   // TobyTester::testToby();
+   // PX4_INFO("Exit");
 
 
+
+
+
+    //*******Test external start Mavlink
+
+ //   unsigned char tx_buffer[]={"Hallo Michael"};
+
+
+    const char *myargv[3] = {"start","-d","/dev/toby"};
+    //char **myargv2 = (char**)myargv;
+
+    Mavlink::start(3,(char**)myargv);
+
+    PX4_INFO("myargv: %s", myargv[0]);
+
+
+   // myargv[][0] = {"start"};
+
+    //{{"start"}, {"-d"}, {"/dev/toby"}};
+
+  /*
+    Mavlink::start()
+    testTaskMavlink = px4_task_spawn_cmd("Mavlink to Toby",
+                     SCHED_DEFAULT,
+                     SCHED_PRIORITY_MAX,
+                     2000,
+                     mavlink_main,
+                     (argv) ? (char *const *)&argv[2] : (char *const *)NULL);
+
+*/
     return 0;
 }
 
