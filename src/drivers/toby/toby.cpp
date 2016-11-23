@@ -42,8 +42,6 @@
 #include "toby.h"
 #include <drivers/drv_toby.h>
 #include <drivers/device/ringbuffer.h>
-
-#include <stdio.h>
 #include <termios.h>
 
 #include <px4_config.h>
@@ -54,8 +52,13 @@
 #include <string.h>
 #include <fcntl.h>
 
-#include <stdio.h>
-#include <stdlib.h>
+
+#include <stdlib.h> //für fopen()!
+
+//for readATfromSD
+#define MAX_INPUT_LENGTH	10
+#define MAX_LINE_NUMBER		10
+#define PATH                "/fs/microsd/toby/at-inits.txt"
 
 /*
  * Ideally we'd be able to get these from up_internal.h,
@@ -81,18 +84,19 @@ int set_flowcontrol(int fd, int control);
 void *doClose(void *arg);
 int toby_init();
 void ringBufferTest();
+void readATfromSD();
 
 
 Toby::Toby() :
-#ifdef __PX4_NUTTX
+    #ifdef __PX4_NUTTX
     CDev("Toby", "/dev/toby")
-#else
+  #else
     //Übernommen aus anderen Treiberimplementationen
     VDev("toby", "/dev/toby")
-#endif
+  #endif
 {
-	// force immediate init/device registration
-	init();
+    // force immediate init/device registration
+    init();
 }
 
 Toby::~Toby()
@@ -108,13 +112,14 @@ int Toby::init()
     ringBufferTest();   //Test
     writeBuffer = new ringbuffer::RingBuffer(20,sizeof(char));
 #ifdef __PX4_NUTTX
-	CDev::init();
+    CDev::init();
 #else
-	VDev::init();
+    VDev::init();
 #endif
-    toby_init();
+    //toby_init();
+    readATfromSD();
 
-	return 0;
+    return 0;
 }
 
 
@@ -122,8 +127,8 @@ int Toby::open(device::file_t *filp){
 
     //Debugging
     PX4_INFO("open() is called");
-        pid_t x = ::getpid();
-        PX4_INFO("actual thread id : %d",x);
+    pid_t x = ::getpid();
+    PX4_INFO("actual thread id : %d",x);
 
 
     //*******************************************************************
@@ -161,8 +166,8 @@ int Toby::open(device::file_t *filp){
     cfsetospeed(&options, B57600);
 
 
-  //  cfsetispeed(&options, B9600);
-  //  cfsetospeed(&options, B9600);
+    //  cfsetispeed(&options, B9600);
+    //  cfsetospeed(&options, B9600);
 
     set_flowcontrol(uart0_filestream,0);
     tcflush(uart0_filestream, TCIFLUSH);
@@ -173,7 +178,7 @@ int Toby::open(device::file_t *filp){
     }
 
 
-   //Debugging :
+    //Debugging :
     union DeviceId deviceID =  CDev::Device::_device_id;
     PX4_INFO("my DeviceID = %i", deviceID.devid);
 
@@ -235,7 +240,7 @@ ssize_t	Toby::write(device::file_t *filp, const char *buffer, size_t buflen){
     int count = 0;
     if (uart0_filestream != -1)
     {
- //       PX4_INFO("::write() uart_filstream %d",uart0_filestream);
+        //       PX4_INFO("::write() uart_filstream %d",uart0_filestream);
 
 
         count = px4_write(uart0_filestream, buffer, buflen);
@@ -246,7 +251,7 @@ ssize_t	Toby::write(device::file_t *filp, const char *buffer, size_t buflen){
         }
 
     }
-   // close(NULL);
+    // close(NULL);
     return count;
 }
 
@@ -320,7 +325,7 @@ int toby_init(){
     at_command_send[6][]="";
     at_command_send[7][]="";*/
 
-   /* char* at_command_receive[8];
+    /* char* at_command_receive[8];
     at_command_receive[0]="AT";
     at_command_receive[1]="OK";
     at_command_receive[2]="ATE0";
@@ -330,28 +335,7 @@ int toby_init(){
     at_command_receive[6]="";
     at_command_receive[7]="";*/
 
-    unsigned char buffer[50][8]={};
-
-
-    FILE *f = fopen("/fs/microsd/test/myfile.txt", "r");
-    int pos = 0;
-    int c;
-    if(f) {
-        PX4_INFO("SD-Karte offen");
-
-        do{ // read one line until EOF
-            c = fgetc(f);
-            if((c != EOF)||(c != '\n'))
-            {
-                buffer[0][pos++] = (char)c;
-            }
-            }while(c != EOF && c != '\n');
-        }
-    fclose(f);
-
-    PX4_INFO("Von SD Karte gelesen: %s", buffer);
-
-
+    //unsigned char buffer[50][8]={};
 
 
     /*
@@ -571,5 +555,68 @@ void ringBufferTest(){
     x->get(tx_buffer[1]);
 
     PX4_INFO("Received: %s", tx_buffer);
+}
+
+void readATfromSD()
+{
+    FILE *f = fopen(PATH, "r");
+    int pos = 	0;
+    int line=	0;
+    int buf=	0;
+    int c;         //Charakter Zwischenspeicher muss negativ werden können
+                    //return von fgetc() ist -1 für das ende der Zeile
+    unsigned char buffer[2][MAX_LINE_NUMBER][MAX_INPUT_LENGTH]={};
+
+    if(f) {
+        PX4_INFO("SD-Karte offen");
+        //std::cout<<"SD-Karte offen"<<std::endl;
+        do { // read all lines in file
+            pos = 0;
+            do{ // read one line until EOF
+                c = fgetc(f);
+                if(c ==':')
+                {
+                    //std::cout<<"Bufferchange to 1 because of :"<<std::endl;
+                    buf=1;
+                }else if(c != EOF){
+                    //std::cout<<"c="<<c<<std::endl;
+                    buffer[buf][line][pos] = (char)c;
+                    pos++;
+                }else{}
+            }while(c != EOF && c != '\n');
+            line++;
+            //std::cout<<"Bufferchange back to 0"<<std::endl;
+            buf=0;
+        } while(c != EOF);
+    }else{
+        PX4_INFO("SD-Karte NICHT offen");
+        //std::cout<<"SD-Karte NICHT offen"<<std::endl;
+    }
+    fclose(f);
+
+    //std::cout<<"myfile  beinhaltet "<<line-1<<" Zeilen"<<std::endl;
+    PX4_INFO("myfile  beinhaltet %d Zeilen", (line-1));
+    //std::cout<<"Anfragen:"<<std::endl;
+    PX4_INFO("Anfragen");
+
+    for(int i=0; i <line ; i++)
+    {
+        for(int j=0; j < MAX_INPUT_LENGTH; j++)
+        {
+            //std::cout << buffer[0][i][j];
+            PX4_INFO("%c",buffer[0][i][j]);
+        }
+        //std::cout<<std::endl;
+    }
+    //std::cout<<"Antworten:"<<std::endl;
+
+    for(int i=0; i <line ; i++)
+    {
+        for(int j=0; j < MAX_INPUT_LENGTH; j++)
+        {
+            //std::cout << buffer[1][i][j];
+            PX4_INFO("%c",buffer[1][i][j]);
+        }
+    }
 }
 
