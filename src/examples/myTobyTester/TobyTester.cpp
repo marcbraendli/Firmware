@@ -73,7 +73,7 @@ int TobyTester_main(int argc, char *argv[])
 {
 
     PX4_INFO("This is a Toby Test App");
-   // TobyTester::testToby();
+    TobyTester::testToby();
    // PX4_INFO("Exit");
 
 

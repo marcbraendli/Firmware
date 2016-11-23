@@ -287,7 +287,7 @@ int	Toby::poll(device::file_t *filp, struct pollfd *fds, bool setup){
     //  PX4_INFO("poll() is called with return %d",poll_return);
 
 
-    return 10;
+    return poll_return;
 
 
 }
