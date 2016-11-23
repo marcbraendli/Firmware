@@ -38,6 +38,8 @@ px4_add_module(
         SRCS
                 toby.cpp
 		toby.h
+                toby2.cpp
+                toby2.h
         DEPENDS
                 platforms__common
         )
