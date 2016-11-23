@@ -4,6 +4,8 @@
 
 #include <drivers/device/device_nuttx.h>
 #include <termios.h>
+#include "tobyDevice.h"
+
 
 
 
@@ -35,6 +37,7 @@ private:
     int uart0_filestream;
     ringbuffer::RingBuffer *writeBuffer;
     struct termios options= {};
+    TobyDevice* myTobyDevice;
 
 
 

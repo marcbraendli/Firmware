@@ -32,6 +32,8 @@
 #include <systemlib/err.h>
 #include <termios.h>
 #include <drivers/toby/toby.h>
+//#include <drivers/toby/tobyDevice.h>
+
 
 #include <modules/mavlink/mavlink_main.h>
 
@@ -57,6 +59,13 @@ int openToby();
 void writeToby(int uart0_filestream);
 void readToby(int uart0_filestream);
 void closeToby(int uart0_filestream);
+void startMavlink();
+}
+
+namespace TobyDeviceTester{
+
+void testTobyDevice();
+
 }
 
 
@@ -73,8 +82,12 @@ int TobyTester_main(int argc, char *argv[])
 {
 
     PX4_INFO("This is a Toby Test App");
-   // TobyTester::testToby();
-   // PX4_INFO("Exit");
+
+    /*****************my testfunctions*********************/
+
+    // TobyTester::testToby();
+    TobyDeviceTester::testTobyDevice();
+
 
 
 
@@ -93,22 +106,12 @@ int TobyTester_main(int argc, char *argv[])
     PX4_INFO("myargv: %s", myargv[0]);
 
 
-   // myargv[][0] = {"start"};
 
-    //{{"start"}, {"-d"}, {"/dev/toby"}};
-
-  /*
-    Mavlink::start()
-    testTaskMavlink = px4_task_spawn_cmd("Mavlink to Toby",
-                     SCHED_DEFAULT,
-                     SCHED_PRIORITY_MAX,
-                     2000,
-                     mavlink_main,
-                     (argv) ? (char *const *)&argv[2] : (char *const *)NULL);
-
-*/
     return 0;
 }
+
+
+
 
 namespace TobyTester{
 
@@ -205,7 +208,8 @@ void writeToby(int uart0_filestream){
 
 void readToby(int uart0_filestream){
 
-    px4_pollfd_struct_t fds[1];
+    px4_pollfd_struct_t fds[1
+            ];
     fds[0].fd = uart0_filestream;
     fds[0].events = POLLIN;
     unsigned char rx_buffer[50]={};
@@ -256,9 +260,48 @@ void closeToby(int uart0_filestream){
 
 }
 
+void startMavlink(){
+    // myargv[][0] = {"start"};
+
+     //{{"start"}, {"-d"}, {"/dev/toby"}};
+
+   /*
+     Mavlink::start()
+     testTaskMavlink = px4_task_spawn_cmd("Mavlink to Toby",
+                      SCHED_DEFAULT,
+                      SCHED_PRIORITY_MAX,
+                      2000,
+                      mavlink_main,
+                      (argv) ? (char *const *)&argv[2] : (char *const *)NULL);
+
+ */
+
+
+     // PX4_INFO("Exit");
+}
+
+}
+
+
+namespace TobyDeviceTester{
+
+void testTobyDevice(){
+
+
+    char tx_buffer[]={"Hallo Michael"};
+
+
+
+
+
+    TobyDevice *myDevice = new TobyDevice();
+    myDevice->write(tx_buffer,13);
 }
 
 
 
+
+
+}
 
 

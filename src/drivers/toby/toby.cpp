@@ -83,6 +83,7 @@ void ringBufferTest();
 Toby::Toby() :
 #ifdef __PX4_NUTTX
     CDev("Toby", "/dev/toby")
+
 #else
     //Übernommen aus anderen Treiberimplementationen
     VDev("toby", "/dev/toby")
@@ -90,6 +91,7 @@ Toby::Toby() :
 {
 	// force immediate init/device registration
 	init();
+    myTobyDevice = new TobyDevice();
 }
 
 Toby::~Toby()
@@ -116,19 +118,22 @@ int Toby::init()
 
 int Toby::open(device::file_t *filp){
 
+    /* old function:
+
+    {
     //Debugging
     PX4_INFO("open() is called");
         pid_t x = ::getpid();
         PX4_INFO("actual thread id : %d",x);
 
 
-    //*******************************************************************
+    // *******************************************************************
     int l = ::device::CDev::open(filp);
     PX4_INFO("CDev:Open() mit return %d",l);
 
 
 
-    //***********************set options and open uart device************
+    // ***********************set options and open uart device************
 
     //todo: Übernahme der Optionen termios des caller ... but how?
     uart0_filestream =px4_open("/dev/ttyS6", O_RDWR |O_NOCTTY);
@@ -174,21 +179,36 @@ int Toby::open(device::file_t *filp){
     PX4_INFO("my DeviceID = %i", deviceID.devid);
 
 
-    //*******************************************************************
+    // *******************************************************************
 
 
     return l;
+
+    }
+
+    */
+
+    //new function******
+
+    // register in the system over the main-class
+    int l = ::device::CDev::open(filp);
+
+    return l;
+
 }
 
 
 int	Toby::close(device::file_t *filp){
+
+    /* old function
+    {
     PX4_INFO("close() is called, we close with %d",uart0_filestream);
     ::device::CDev::close(filp);
 
     //for Debugging
     pid_t x = ::getpid();
     PX4_INFO("actual thread id : %d",x);
-    //**************************************
+    // **************************************
 
 
     tcflush(uart0_filestream, TCIFLUSH);
@@ -209,20 +229,42 @@ int	Toby::close(device::file_t *filp){
 
     //return value not valid yet!
     return 0;
+    }
+    */
+
+    //new function
+    int closed =  ::device::CDev::close(filp);
+    //TobyDevice close the uart himself
+    delete myTobyDevice;
+    myTobyDevice = nullptr;
+
+    return closed;
+
+
 }
 
 
 ssize_t	Toby::read(device::file_t *filp, char *buffer, size_t buflen)
 {
+    /* old function
+    {
     //PX4_INFO("read() is called");
     ::device::CDev::read(filp,buffer,buflen);
     int i = px4_read(uart0_filestream,buffer,buflen);
 
     return i;
 }
+    */
+
+    //new function
+    return myTobyDevice->read(buffer,buflen);
+
+}
 
 ssize_t	Toby::write(device::file_t *filp, const char *buffer, size_t buflen){
 
+ /* old function:
+  {
     //todo : effizienter implementieren, but how?
 
     //Debugging
@@ -243,7 +285,15 @@ ssize_t	Toby::write(device::file_t *filp, const char *buffer, size_t buflen){
 
     }
    // close(NULL);
+
+  }
+    */
+    //the new function
+    int count = myTobyDevice->write(buffer,buflen);
     return count;
+
+
+
 }
 
 
@@ -266,13 +316,17 @@ Toby::ioctl(device::file_t *filp, int cmd, unsigned long arg)
     //PX4_INFO("ioctl() return %d",i);
 
     //ioctl direct to uart
-    return ::ioctl(uart0_filestream,cmd,arg);
+    //new function
+    return myTobyDevice->ioctl(cmd,arg);
+    //old function
+    //return ::ioctl(uart0_filestream,cmd,arg);
 }
 
 
 int	Toby::poll(device::file_t *filp, struct pollfd *fds, bool setup){
 
-
+    /* old Function
+{
     px4_pollfd_struct_t fds1[1];
     fds1[0].fd = uart0_filestream;
     fds1[0].events = POLLIN;
@@ -285,11 +339,18 @@ int	Toby::poll(device::file_t *filp, struct pollfd *fds, bool setup){
     }
 
     //  PX4_INFO("poll() is called with return %d",poll_return);
+}
+*/
+    // new function:
+    int poll_return = myTobyDevice->poll(fds,setup);
+    PX4_INFO("poll() is called with return %d",poll_return);
 
+    if(poll_return > 0){
 
-    return 10;
-
-
+        poll_notify(POLLIN);
+        poll_notify_one(fds, POLLIN);
+    }
+    return poll_return;
 }
 
 
