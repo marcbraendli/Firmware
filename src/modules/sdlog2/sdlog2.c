@@ -284,7 +284,7 @@ static int create_log_dir(void);
 static bool get_log_time_tt(struct tm *tt, bool boot_time);
 
 /**
- * Select first free log file name and open it.
+ * Select first free log file name and  it.
  */
 static int open_log_file(void);
 

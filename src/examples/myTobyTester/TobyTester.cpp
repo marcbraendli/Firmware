@@ -74,7 +74,7 @@ int TobyTester_main(int argc, char *argv[])
 
     PX4_INFO("This is a Toby Test App");
    // TobyTester::testToby();
-   // PX4_INFO("Exit");
+  //  PX4_INFO("Exit");
 
 
 
@@ -85,12 +85,7 @@ int TobyTester_main(int argc, char *argv[])
  //   unsigned char tx_buffer[]={"Hallo Michael"};
 
 
-    const char *myargv[3] = {"start","-d","/dev/toby"};
-    //char **myargv2 = (char**)myargv;
 
-    Mavlink::start(3,(char**)myargv);
-
-    PX4_INFO("myargv: %s", myargv[0]);
 
 
    // myargv[][0] = {"start"};

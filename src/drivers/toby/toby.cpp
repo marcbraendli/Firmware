@@ -54,6 +54,9 @@
 #include <string.h>
 #include <fcntl.h>
 
+#include <stdio.h>
+#include <stdlib.h>
+
 /*
  * Ideally we'd be able to get these from up_internal.h,
  * but since we want to be able to disable the NuttX use
@@ -101,6 +104,7 @@ Toby::~Toby()
 int Toby::init()
 {
     PX4_INFO("TOBY::init");
+
     ringBufferTest();   //Test
     writeBuffer = new ringbuffer::RingBuffer(20,sizeof(char));
 #ifdef __PX4_NUTTX
@@ -298,12 +302,140 @@ int	Toby::poll(device::file_t *filp, struct pollfd *fds, bool setup){
 
 int toby_init(){
 
-    //für Debuggingzwecke
+
+
     PX4_INFO("toby_init");
+
+    //int i =0;
+    //int send =1;
+
+    //const char *at_command_send[2]={"AT","ATE0"};
+
+    /*at_command_send[0][]="AT";
+    at_command_send[1][]="ATE0";
+    at_command_send[2][]="";
+    at_command_send[3][]="";
+    at_command_send[4][]="";
+    at_command_send[5][]="";
+    at_command_send[6][]="";
+    at_command_send[7][]="";*/
+
+   /* char* at_command_receive[8];
+    at_command_receive[0]="AT";
+    at_command_receive[1]="OK";
+    at_command_receive[2]="ATE0";
+    at_command_receive[3]="OK";
+    at_command_receive[4]="";
+    at_command_receive[5]="";
+    at_command_receive[6]="";
+    at_command_receive[7]="";*/
+
+    unsigned char buffer[50][8]={};
+
+
+    FILE *f = fopen("/fs/microsd/test/myfile.txt", "r");
+    int pos = 0;
+    int c;
+    if(f) {
+        PX4_INFO("SD-Karte offen");
+
+        do{ // read one line until EOF
+            c = fgetc(f);
+            if((c != EOF)||(c != '\n'))
+            {
+                buffer[0][pos++] = (char)c;
+            }
+            }while(c != EOF && c != '\n');
+        }
+    fclose(f);
+
+    PX4_INFO("Von SD Karte gelesen: %s", buffer);
+
+
+
+
+    /*
+    int uart0_filestream =-1;
+
+    uart0_filestream =open("/dev/ttyS6", O_RDWR |O_NOCTTY | O_NDELAY);
+
+    if(uart0_filestream == -1)
+    {
+        PX4_INFO("Unable to Open /dev/ttyS6");
+
+    }
+    PX4_INFO("open return value /dev/ttyS6: %d",uart0_filestream);
+
+    struct termios options= {};
+    tcgetattr(uart0_filestream, &options);
+
+    //options.c_cflag &= ~(CSIZE | PARENB);
+    options.c_cflag = CS8;
+    //options.c_iflag = IGNPAR;
+    options.c_iflag&= ~(IGNBRK | BRKINT | ICRNL | INLCR | PARMRK | INPCK | ISTRIP | IXON);
+    options.c_oflag = 0;
+    //options.c_oflag = O_NONBLOCK;
+    options.c_lflag &= ~(ECHO | ECHONL | ICANON | IEXTEN | ISIG);
+    //options.c_lflag = ECHO;
+
+    options.c_cflag &= ~(CSTOPB | PARENB);
+
+    cfsetispeed(&options, B9600);
+    cfsetospeed(&options, B9600);
+
+    set_flowcontrol(uart0_filestream,0);
+
+    tcflush(uart0_filestream, TCIFLUSH);
+
+    if(tcsetattr(uart0_filestream, TCSANOW, &options)<0)
+    {
+        PX4_WARN("Wrong Options");
+    }
+
+    px4_pollfd_struct_t fds[1];
+    fds[0].fd = uart0_filestream;
+    fds[0].events = POLLIN;
+
+    while(i<10)
+    {
+
+        if(send)
+        {
+            int count = write(uart0_filestream, at_command_send[0], sizeof(at_command_send)/sizeof(at_command_send[0]));
+            if (count < 0)
+            {
+                PX4_INFO("UART TX error");
+            }
+            send=0;
+        }else{
+
+            int poll_ret = px4_poll(fds, 1, 150);
+            if (poll_ret == 0)
+            {
+                PX4_INFO("Got no datas!");
+            }else if(poll_ret <0){
+                PX4_ERR("ERROR return value from poll(): %d", poll_ret);
+                break;
+            }else
+            {
+                if (fds[0].revents & POLLIN)
+                {
+                    int count = read(uart0_filestream, rx_buffer,1);
+                    if (count < 0)
+                    {
+                        PX4_ERR("UART RX error");
+                    }
+                    PX4_INFO("Received: %s", rx_buffer);
+                    send=1;
+                }
+                i++;
+            }
+        }
+     }
+
+    close(uart0_filestream);*/
+
     return 0;
-
-    //todo : initalization toby L210 Module with AT-Command
-
 }
 
 namespace
@@ -351,6 +483,10 @@ toby_main(int argc, char *argv[])
     //todo : Alle input parameter handler implementieren
     // Stubs für andere start-argumente
     if (!strcmp(argv[1], "stop")) {
+        PX4_INFO("Toby wird beendet");
+        delete gToby;
+        gToby= nullptr;
+
     }
 
     /*
