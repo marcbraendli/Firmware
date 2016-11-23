@@ -23,7 +23,7 @@ public:
     virtual int		init();
 
 
-    virtual int open(device::file_t *filp);
+   // virtual int open(device::file_t *filp);
     virtual int	close(device::file_t *filp);
     virtual ssize_t	read(device::file_t *filp, char *buffer, size_t buflen);
     virtual ssize_t	write(device::file_t *filp, const char *buffer, size_t buflen);

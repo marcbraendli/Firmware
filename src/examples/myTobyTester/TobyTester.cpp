@@ -85,8 +85,11 @@ int TobyTester_main(int argc, char *argv[])
 
     /*****************my testfunctions*********************/
 
-    // TobyTester::testToby();
-    TobyDeviceTester::testTobyDevice();
+    //TobyDeviceTester::testTobyDevice();
+    //PX4_INFO("TobyDevice finished, start testToby()");
+
+    TobyTester::testToby();
+
 
 
 
@@ -98,6 +101,8 @@ int TobyTester_main(int argc, char *argv[])
  //   unsigned char tx_buffer[]={"Hallo Michael"};
 
 
+    /*
+   {
     const char *myargv[3] = {"start","-d","/dev/toby"};
     //char **myargv2 = (char**)myargv;
 
@@ -106,6 +111,10 @@ int TobyTester_main(int argc, char *argv[])
     PX4_INFO("myargv: %s", myargv[0]);
 
 
+
+    return 0;
+    }
+    */
 
     return 0;
 }
@@ -148,8 +157,8 @@ void testToby(){
     //open Toby againg
     PX4_INFO("openToby again Test : ");
     myTestFilestream = openToby();
-    ASSERT(myTestFilestream = -1);
-    PX4_INFO("openToby again Test OK");
+   // ASSERT(myTestFilestream != -1);
+    PX4_INFO("openToby again Test OK with %d",myTestFilestream);
 
     //test writing to external uart : visual test required
     PX4_INFO("writeToby Test : ");
@@ -185,6 +194,8 @@ int openToby(){
 
 
     //  ASSERT(uart0_filestream != -1);
+
+    PX4_INFO("Let's terminate");
 
     return uart0_filestream;
 }
@@ -296,6 +307,7 @@ void testTobyDevice(){
 
     TobyDevice *myDevice = new TobyDevice();
     myDevice->write(tx_buffer,13);
+    delete myDevice;
 }
 
 

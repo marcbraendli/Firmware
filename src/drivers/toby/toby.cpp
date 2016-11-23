@@ -96,6 +96,10 @@ Toby::Toby() :
 
 Toby::~Toby()
 {
+    if(myTobyDevice != nullptr){
+        //should already be deleted in close(), but if close never never is called:
+        delete myTobyDevice;
+    }
 }
 
 
@@ -103,8 +107,8 @@ Toby::~Toby()
 int Toby::init()
 {
     PX4_INFO("TOBY::init");
-    ringBufferTest();   //Test
-    writeBuffer = new ringbuffer::RingBuffer(20,sizeof(char));
+   // ringBufferTest();   //Test
+   // writeBuffer = new ringbuffer::RingBuffer(20,sizeof(char));
 #ifdef __PX4_NUTTX
 	CDev::init();
 #else
@@ -116,86 +120,6 @@ int Toby::init()
 }
 
 
-int Toby::open(device::file_t *filp){
-
-    /* old function:
-
-    {
-    //Debugging
-    PX4_INFO("open() is called");
-        pid_t x = ::getpid();
-        PX4_INFO("actual thread id : %d",x);
-
-
-    // *******************************************************************
-    int l = ::device::CDev::open(filp);
-    PX4_INFO("CDev:Open() mit return %d",l);
-
-
-
-    // ***********************set options and open uart device************
-
-    //todo: Übernahme der Optionen termios des caller ... but how?
-    uart0_filestream =px4_open("/dev/ttyS6", O_RDWR |O_NOCTTY);
-
-    if(uart0_filestream == -1)
-    {
-        PX4_INFO("Unable to Open /dev/ttys6");
-
-    }
-    PX4_INFO("open return value /dev/ttys6: %d",uart0_filestream);
-
-    tcgetattr(uart0_filestream, &options);
-
-    //options.c_cflag &= ~(CSIZE | PARENB);
-    options.c_cflag = CS8;
-    //options.c_iflag = IGNPAR;
-    options.c_iflag&= ~(IGNBRK | BRKINT | ICRNL | INLCR | PARMRK | INPCK | ISTRIP | IXON);
-    options.c_oflag = 0;
-    //options.c_oflag = O_NONBLOCK;
-    options.c_lflag &= ~(ECHO | ECHONL | ICANON | IEXTEN | ISIG);
-    //options.c_lflag = ECHO;
-
-    options.c_cflag &= ~(CSTOPB | PARENB);
-
-    cfsetispeed(&options, B57600);
-    cfsetospeed(&options, B57600);
-
-
-  //  cfsetispeed(&options, B9600);
-  //  cfsetospeed(&options, B9600);
-
-    set_flowcontrol(uart0_filestream,0);
-    tcflush(uart0_filestream, TCIFLUSH);
-
-    if(tcsetattr(uart0_filestream, TCSANOW, &options)<0)
-    {
-        PX4_WARN("Wrong Options");
-    }
-
-
-   //Debugging :
-    union DeviceId deviceID =  CDev::Device::_device_id;
-    PX4_INFO("my DeviceID = %i", deviceID.devid);
-
-
-    // *******************************************************************
-
-
-    return l;
-
-    }
-
-    */
-
-    //new function******
-
-    // register in the system over the main-class
-    int l = ::device::CDev::open(filp);
-
-    return l;
-
-}
 
 
 int	Toby::close(device::file_t *filp){
@@ -233,8 +157,9 @@ int	Toby::close(device::file_t *filp){
     */
 
     //new function
+    PX4_INFO("Toby::close() is called, we close with");
     int closed =  ::device::CDev::close(filp);
-    //TobyDevice close the uart himself
+    //TobyDevice closes the uart himself
     delete myTobyDevice;
     myTobyDevice = nullptr;
 
@@ -257,6 +182,8 @@ ssize_t	Toby::read(device::file_t *filp, char *buffer, size_t buflen)
     */
 
     //new function
+    PX4_INFO("Toby::read() is called");
+
     return myTobyDevice->read(buffer,buflen);
 
 }
@@ -289,7 +216,11 @@ ssize_t	Toby::write(device::file_t *filp, const char *buffer, size_t buflen){
   }
     */
     //the new function
+    PX4_INFO("Toby::write() is called");
+
     int count = myTobyDevice->write(buffer,buflen);
+    //PX4_INFO("Toby::write() return %d",count);
+
     return count;
 
 

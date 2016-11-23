@@ -35,6 +35,8 @@ TobyDevice::TobyDevice()
     PX4_INFO("this is TobyDeviceHelper()");
 
     uart0_filestream = uart_open(options);
+    PX4_INFO("opened uart with %d",uart0_filestream);
+
 }
 
 TobyDevice::~TobyDevice()
@@ -60,15 +62,17 @@ ssize_t	TobyDevice::write(const char *buffer, size_t buflen){
     //todo : effizienter implementieren, but how?
 
     //Debugging
-    PX4_INFO("write() is called");
+    PX4_INFO("TobyDevice::write() is called with uart0_filestream %d",uart0_filestream);
 
     int count = 0;
     if (uart0_filestream != -1)
     {
- //       PX4_INFO("::write() uart_filstream %d",uart0_filestream);
+     PX4_INFO("::write() uart_filstream %d",uart0_filestream);
 
 
         count = px4_write(uart0_filestream, buffer, buflen);
+       // PX4_INFO("::write() count = %d",count);
+
         if (count < 0)
         {
             //Debugging
@@ -116,7 +120,7 @@ int	TobyDevice::poll(struct pollfd *fds, bool setup){
     //  PX4_INFO("poll() is called with return %d",poll_return);
 
 
-    return 10;
+    return poll_return;
 
 
 }
@@ -178,6 +182,7 @@ int TobyDeviceHelper::uart_open(struct termios options){
 
     //*******************************************************************
 
+    PX4_INFO("uart_open() terminates with return %i",uart0_filestream);
 
     //if failed, return = -1
     return uart0_filestream;
