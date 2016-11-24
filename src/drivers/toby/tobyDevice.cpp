@@ -23,7 +23,7 @@
 namespace TobyDeviceHelper {
 int set_flowcontrol(int fd, int control);
 void *doClose(void *arg);
-int uart_open(struct termios options);
+int uart_open(struct termios* options);
 void uart_close(int uart0_filestream);
 
 }
@@ -34,13 +34,14 @@ TobyDevice::TobyDevice()
 {
     PX4_INFO("this is TobyDeviceHelper()");
 
-    uart0_filestream = uart_open(options);
+    uart0_filestream = uart_open(&options);
     PX4_INFO("opened uart with %d",uart0_filestream);
 
 }
 
 TobyDevice::~TobyDevice()
 {
+    PX4_INFO("this is ~TobyDeviceHelper() deconstructor");
     uart_close(uart0_filestream);
 }
 
@@ -71,7 +72,7 @@ ssize_t	TobyDevice::write(const char *buffer, size_t buflen){
 
 
         count = px4_write(uart0_filestream, buffer, buflen);
-       // PX4_INFO("::write() count = %d",count);
+       PX4_INFO("::write() count = %d",count);
 
         if (count < 0)
         {
@@ -130,7 +131,8 @@ int	TobyDevice::poll(struct pollfd *fds, bool setup){
 //****************************hilfsfunktionen********************************
 
 
-int TobyDeviceHelper::uart_open(struct termios options){
+int TobyDeviceHelper::uart_open(struct termios* options){
+
 
 
     //Debugging
@@ -141,39 +143,39 @@ int TobyDeviceHelper::uart_open(struct termios options){
     //***********************set options and open uart device************
 
     //todo: Übernahme der Optionen termios des caller ... but how?
-    int uart0_filestream =px4_open("/dev/ttyS6", O_RDWR |O_NOCTTY);
+    int localUart0_filestream =px4_open("/dev/ttyS6", O_RDWR |O_NOCTTY);
 
-    if(uart0_filestream == -1)
+    if(localUart0_filestream == -1)
     {
         PX4_INFO("Unable to Open /dev/ttys6");
 
     }
-    PX4_INFO("open return value /dev/ttys6: %d",uart0_filestream);
+    PX4_INFO("open return value /dev/ttys6: %d",localUart0_filestream);
 
-    tcgetattr(uart0_filestream, &options);
+    tcgetattr(localUart0_filestream, options);
 
     //options.c_cflag &= ~(CSIZE | PARENB);
-    options.c_cflag = CS8;
+    options->c_cflag = CS8;
     //options.c_iflag = IGNPAR;
-    options.c_iflag&= ~(IGNBRK | BRKINT | ICRNL | INLCR | PARMRK | INPCK | ISTRIP | IXON);
-    options.c_oflag = 0;
+    options->c_iflag&= ~(IGNBRK | BRKINT | ICRNL | INLCR | PARMRK | INPCK | ISTRIP | IXON);
+    options->c_oflag = 0;
     //options.c_oflag = O_NONBLOCK;
-    options.c_lflag &= ~(ECHO | ECHONL | ICANON | IEXTEN | ISIG);
+    options->c_lflag &= ~(ECHO | ECHONL | ICANON | IEXTEN | ISIG);
     //options.c_lflag = ECHO;
 
-    options.c_cflag &= ~(CSTOPB | PARENB);
+    options->c_cflag &= ~(CSTOPB | PARENB);
 
-    cfsetispeed(&options, B57600);
-    cfsetospeed(&options, B57600);
+    cfsetispeed(options, B57600);
+    cfsetospeed(options, B57600);
 
 
   //  cfsetispeed(&options, B9600);
   //  cfsetospeed(&options, B9600);
 
-    set_flowcontrol(uart0_filestream,0);
-    tcflush(uart0_filestream, TCIFLUSH);
+   // set_flowcontrol(localUart0_filestream,0);
+    tcflush(localUart0_filestream, TCIFLUSH);
 
-    if(tcsetattr(uart0_filestream, TCSANOW, &options)<0)
+    if(tcsetattr(localUart0_filestream, TCSANOW, options)<0)
     {
         PX4_WARN("Wrong Options");
     }
@@ -182,10 +184,10 @@ int TobyDeviceHelper::uart_open(struct termios options){
 
     //*******************************************************************
 
-    PX4_INFO("uart_open() terminates with return %i",uart0_filestream);
+    PX4_INFO("uart_open() terminates with return %i",localUart0_filestream);
 
     //if failed, return = -1
-    return uart0_filestream;
+    return localUart0_filestream;
 
 }
 

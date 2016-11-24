@@ -38,7 +38,13 @@
 #include <modules/mavlink/mavlink_main.h>
 
 
-
+//**geändert ::
+/*Flag bei Uart
+ * filp in open()
+ *
+ *
+ *
+ */
 
 
 
@@ -183,7 +189,7 @@ void testToby(){
 int openToby(){
 
     int uart0_filestream =-1;
-    uart0_filestream =::open("/dev/toby", O_RDWR |O_NOCTTY | O_NDELAY);
+    uart0_filestream =::open("/dev/toby", O_RDWR | O_NDELAY);
 
     if(uart0_filestream == -1)
     {

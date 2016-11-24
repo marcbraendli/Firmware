@@ -89,9 +89,9 @@ Toby::Toby() :
     VDev("toby", "/dev/toby")
 #endif
 {
+
 	// force immediate init/device registration
 	init();
-    myTobyDevice = new TobyDevice();
 }
 
 Toby::~Toby()
@@ -114,9 +114,17 @@ int Toby::init()
 #else
 	VDev::init();
 #endif
+    //myTobyDevice = new TobyDevice();
     toby_init();
 
-	return 0;
+    /*Unfortunately, this is not possible, because if we open the TobyDevice here, which would open the uart,
+    the file descrptor to the uart is only valid in the process(the shell or autostart) which start's toby, but if
+    Mavlink open() the toby itself, the uart descriptor in the tobyDevice isn't valid anymore. It would be possible
+    if we share the file descriptor over an InterProcessCommunication, but uORB can't do that.*/
+    //myTobyDevice = new TobyDevice();
+
+
+    return 0;
 }
 
 
@@ -375,6 +383,25 @@ toby_main(int argc, char *argv[])
 }
 
 
+int Toby::open(device::file_t *filp){
+    PX4_INFO("Toby::open() is called");
+    //filp->f_oflags =  OK;
+
+    // we don't wan't that toby is opened twice
+    if(CDev::is_open()){
+        PX4_INFO("Toby::open() already open, return -1");
+        return -1;
+    }
+
+    CDev::open(filp);
+    //open TobyDevice, is not possible in an other way
+    myTobyDevice = new TobyDevice();
+
+    return OK;
+}
+
+
+
 //****************************hilfsfunktionen********************************
 
 void *doClose(void *arg)
@@ -390,12 +417,12 @@ void *doClose(void *arg)
 
 
     return NULL;
-
-
 }
 
 int set_flowcontrol(int fd, int control)
 {
+    PX4_INFO("set_flowcontrol started");
+
     struct termios tty;
     memset(&tty, 0, sizeof tty);
     if (tcgetattr(fd, &tty) != 0)
