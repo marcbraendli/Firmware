@@ -36,7 +36,7 @@ px4_add_module(
         MAIN uart_app
         STACK_MAIN 2000
         SRCS
-                uart_app.c
+                uart_app.cpp
         DEPENDS
                 platforms__common
 
