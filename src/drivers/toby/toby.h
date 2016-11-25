@@ -10,7 +10,11 @@
 
 
 
-
+struct myStruct
+{
+  TobyDevice* myDevice;
+  ringbuffer::RingBuffer* writeBuffer;
+};
 
 
 class Toby : device::CDev
@@ -33,11 +37,22 @@ public:
     int	ioctl(device::file_t *filp, int cmd, unsigned long arg);
     int	poll(device::file_t *filp, struct pollfd *fds, bool setup);
 
+    TobyDevice* myTobyDevice;
+
+
 private:
     ringbuffer::RingBuffer *writeBuffer;
     struct termios options= {};
-    TobyDevice* myTobyDevice;
-    pthread_t *myThread;
+    pthread_t *writerThread;
+    myStruct workerParameters;
+
+    // our worker thread function, needs to be static, otherwise pthread can't execute (is C, not C++)
+    static void *writeWork(void *arg);
+
+    static pthread_cond_t v;
+    static pthread_mutex_t m;
+
+    //
 
 
 

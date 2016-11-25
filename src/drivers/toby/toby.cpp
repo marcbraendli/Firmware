@@ -41,6 +41,8 @@
 
 #include "toby.h"
 #include <drivers/drv_toby.h>
+#include <drivers/toby/tobyDevice.h>
+
 #include <drivers/device/ringbuffer.h>
 
 #include <stdio.h>
@@ -79,6 +81,8 @@ void *doClose(void *arg);
 void *writeHard(void *arg);
 int toby_init();
 void ringBufferTest();
+int writeHardHelper(TobyDevice* myDevice);
+
 
 
 Toby::Toby() :
@@ -103,7 +107,7 @@ Toby::Toby() :
     unsigned char dest_buffer[13];
 
     memcpy(dest_buffer, tx_buffer, 13);
-
+    pthread_mutex_init(&Toby::m, NULL);
 
 
 
@@ -112,6 +116,7 @@ Toby::Toby() :
 
 Toby::~Toby()
 {
+
     if(myTobyDevice != nullptr){
         //should already be deleted in close(), but if close never never is called:
         delete myTobyDevice;
@@ -182,10 +187,15 @@ int	Toby::close(device::file_t *filp){
 
     //new function
     PX4_INFO("Toby::close() is called, we close with");
+    pthread_join(*writerThread,NULL);
+    PX4_INFO("Thread terminated");
+
+
     int closed =  ::device::CDev::close(filp);
     //TobyDevice closes the uart himself
     delete myTobyDevice;
     myTobyDevice = nullptr;
+
 
     return closed;
 
@@ -243,32 +253,20 @@ ssize_t	Toby::write(device::file_t *filp, const char *buffer, size_t buflen){
     PX4_INFO("Toby::write() is called");
 
 
-    char *destination = {};
-
-    strcpy(destination,buffer);
-
-    PX4_INFO("toby::write() in buffer: %s", destination);
-
-    destination = strdup(buffer);
-    PX4_INFO("toby::write() 2. Versuch in buffer: %s", destination);
-
-    struct myStruct
-    {
-      int value;    /* Size of the stack allocated for the pthead */
-    };
-
+/*
     myStruct a;
+   // a.text = myTestText;
+    a.myDevice = myTobyDevice;
+   // a.myDevice->write(myTestText,5);
 
-    myStruct* pointer = &a;
-    pointer->value = 4;
+*/
 
-    PX4_INFO("myStruct works if 4 =  %d",pointer->value);
+    unsigned char dest_buffer[13];
 
+    memcpy(dest_buffer, buffer, buflen);
 
- //   typedef struct myStruct *pStruct = new myStruct;
+    writeBuffer->put(dest_buffer);
 
-    myThread = new pthread_t;
-    pthread_create(myThread, NULL, writeHard, (void*)pointer);
 
     int count = myTobyDevice->write(buffer,buflen);
     //PX4_INFO("Toby::write() return %d",count);
@@ -439,10 +437,75 @@ int Toby::open(device::file_t *filp){
 
     CDev::open(filp);
     //open TobyDevice, is not possible in an other way
-    myTobyDevice = new TobyDevice();
+
+
+    this->myTobyDevice = new TobyDevice();
+   // myTobyDevice->write(myTestText,5);
+
+    if(this->myTobyDevice == NULL){
+        PX4_INFO("myTobyDevice is a NULL-Pointer!!!!");
+
+    }
+
+    //****************Test some threading thing's****************
+    // Dangerous passing the myTobyDevice to Thread ... isn't information hiding anymore???!
+
+    workerParameters.myDevice= myTobyDevice;
+    workerParameters.writeBuffer= writeBuffer;
+
+    writerThread = new pthread_t;
+    pthread_create(writerThread, NULL, writeWork, (void*)&workerParameters);
+
+
+
+
+
 
     return OK;
 }
+
+
+void* Toby::writeWork(void *arg){
+
+
+
+
+    PX4_INFO("writeHard Thread started");
+    myStruct *testing = static_cast<myStruct*>(arg);
+
+    ringbuffer::RingBuffer* writeBuffer = testing->writeBuffer;
+  //  PX4_INFO("Thread got the value %s",testing->text);
+
+    const char* myTestText = "HaKLo";
+    char* writeString = NULL;
+
+    if( writeBuffer->get(writeString)){
+        PX4_INFO("Thread sucessfully read from Buffer");
+    }
+
+    sleep(5);
+    if(testing->myDevice == NULL){
+        PX4_INFO("Thread :: got a null-pointer!!");
+
+    }
+
+    PX4_INFO("Thread : Let's write to device");
+    testing->myDevice->write(myTestText,5);
+
+    //TobyDevice *pointer = dynamic_cast<TobyDevice*>(testing->myDevice);
+
+
+
+
+    // pthread_exit();
+
+
+
+    pthread_cond_wait(&v,&m);
+    return NULL;
+
+}
+
 
 
 
@@ -463,25 +526,35 @@ void *doClose(void *arg)
     return NULL;
 }
 
-
+/*
 void *writeHard(void *arg)
 {
-
-
-    struct myStruct
-    {
-      int value;    /* Size of the stack allocated for the pthead */
-    };
-
-
-
-    PX4_INFO("Thread started");
+    PX4_INFO("writeHard Thread started");
     myStruct *testing = static_cast<myStruct*>(arg);
-    PX4_INFO("Thread got the value %d",testing->value);
+  //  PX4_INFO("Thread got the value %s",testing->text);
+
+    const char* myTestText = "HaKLo";
+
+    sleep(5);
+    if(testing->myDevice == NULL){
+        PX4_INFO("Thread :: got a null-pointer!!");
+
+    }
+
+    PX4_INFO("Thread : Let's write to device");
+    testing->myDevice->write(myTestText,5);
+
+    //TobyDevice *pointer = dynamic_cast<TobyDevice*>(testing->myDevice);
 
 
+
+
+    // pthread_exit();
     return NULL;
 }
+
+
+*/
 
 int set_flowcontrol(int fd, int control)
 {

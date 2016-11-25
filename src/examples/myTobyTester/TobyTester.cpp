@@ -163,7 +163,7 @@ void testToby(){
     //open Toby againg
     PX4_INFO("openToby again Test : ");
     myTestFilestream = openToby();
-   // ASSERT(myTestFilestream != -1);
+    ASSERT(myTestFilestream == -1);
     PX4_INFO("openToby again Test OK with %d",myTestFilestream);
 
     //test writing to external uart : visual test required
@@ -233,7 +233,7 @@ void readToby(int uart0_filestream){
 
 
 
-    for(int i=0;i<10;i++)
+    for(int i=0;i<2;i++)
     {
         //sleep(1);
         int poll_ret = px4_poll(fds, 1, 2000);

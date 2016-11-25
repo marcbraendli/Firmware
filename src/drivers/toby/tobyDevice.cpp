@@ -37,6 +37,8 @@ TobyDevice::TobyDevice()
     uart0_filestream = uart_open(&options);
     PX4_INFO("opened uart with %d",uart0_filestream);
 
+    pthread_mutex_init(&lock, NULL);
+
 }
 
 TobyDevice::~TobyDevice()
@@ -60,6 +62,8 @@ ssize_t	TobyDevice::read(char *buffer, size_t buflen)
 
 ssize_t	TobyDevice::write(const char *buffer, size_t buflen){
 
+
+     pthread_mutex_lock(&lock);
     //todo : effizienter implementieren, but how?
 
     //Debugging
@@ -82,9 +86,16 @@ ssize_t	TobyDevice::write(const char *buffer, size_t buflen){
 
     }
    // close(NULL);
+
+  pthread_mutex_unlock(&lock);
     return count;
 }
 
+void* TobyDevice::writeToUart(void *arg){
+
+    PX4_INFO("received data in writeToUart()");
+    return NULL;
+}
 
 
 
@@ -159,7 +170,9 @@ int TobyDeviceHelper::uart_open(struct termios* options){
     //options.c_iflag = IGNPAR;
     options->c_iflag&= ~(IGNBRK | BRKINT | ICRNL | INLCR | PARMRK | INPCK | ISTRIP | IXON);
     options->c_oflag = 0;
-    //options.c_oflag = O_NONBLOCK;
+
+    options->c_oflag = O_NONBLOCK;
+
     options->c_lflag &= ~(ECHO | ECHONL | ICANON | IEXTEN | ISIG);
     //options.c_lflag = ECHO;
 
