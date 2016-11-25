@@ -186,6 +186,7 @@ set(config_module_list
 
         examples/custom_app
         examples/uart_app
+        examples/uart_app2
         examples/custom_daemon_app
         examples/subscriber
 
