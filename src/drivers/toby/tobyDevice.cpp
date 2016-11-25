@@ -172,7 +172,7 @@ int TobyDeviceHelper::uart_open(struct termios* options){
   //  cfsetispeed(&options, B9600);
   //  cfsetospeed(&options, B9600);
 
-   // set_flowcontrol(localUart0_filestream,0);
+    set_flowcontrol(localUart0_filestream,0);
     tcflush(localUart0_filestream, TCIFLUSH);
 
     if(tcsetattr(localUart0_filestream, TCSANOW, options)<0)

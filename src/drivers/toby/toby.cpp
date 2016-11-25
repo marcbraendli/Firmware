@@ -76,6 +76,7 @@ extern "C" __EXPORT int toby_main(int argc, char *argv[]);
 
 int set_flowcontrol(int fd, int control);
 void *doClose(void *arg);
+void *writeHard(void *arg);
 int toby_init();
 void ringBufferTest();
 
@@ -92,6 +93,21 @@ Toby::Toby() :
 
 	// force immediate init/device registration
 	init();
+  //  writeBuffer = new ringbuffer::RingBuffer(16,sizeof(char));
+   // ringbuffer::RingBuffer *myBuffer = new ringbuffer::RingBuffer(2,sizeof(&writeBuffer));
+
+
+    writeBuffer= new ringbuffer::RingBuffer(16,sizeof(char*));
+
+    unsigned char tx_buffer[]={"Hallo Michael"};
+    unsigned char dest_buffer[13];
+
+    memcpy(dest_buffer, tx_buffer, 13);
+
+
+
+
+
 }
 
 Toby::~Toby()
@@ -225,6 +241,34 @@ ssize_t	Toby::write(device::file_t *filp, const char *buffer, size_t buflen){
     */
     //the new function
     PX4_INFO("Toby::write() is called");
+
+
+    char *destination = {};
+
+    strcpy(destination,buffer);
+
+    PX4_INFO("toby::write() in buffer: %s", destination);
+
+    destination = strdup(buffer);
+    PX4_INFO("toby::write() 2. Versuch in buffer: %s", destination);
+
+    struct myStruct
+    {
+      int value;    /* Size of the stack allocated for the pthead */
+    };
+
+    myStruct a;
+
+    myStruct* pointer = &a;
+    pointer->value = 4;
+
+    PX4_INFO("myStruct works if 4 =  %d",pointer->value);
+
+
+ //   typedef struct myStruct *pStruct = new myStruct;
+
+    myThread = new pthread_t;
+    pthread_create(myThread, NULL, writeHard, (void*)pointer);
 
     int count = myTobyDevice->write(buffer,buflen);
     //PX4_INFO("Toby::write() return %d",count);
@@ -414,6 +458,26 @@ void *doClose(void *arg)
     int i = px4_close(4);
 
     PX4_INFO("Thread closed Uart with %d",i);
+
+
+    return NULL;
+}
+
+
+void *writeHard(void *arg)
+{
+
+
+    struct myStruct
+    {
+      int value;    /* Size of the stack allocated for the pthead */
+    };
+
+
+
+    PX4_INFO("Thread started");
+    myStruct *testing = static_cast<myStruct*>(arg);
+    PX4_INFO("Thread got the value %d",testing->value);
 
 
     return NULL;

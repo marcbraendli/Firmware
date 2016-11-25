@@ -37,6 +37,7 @@ private:
     ringbuffer::RingBuffer *writeBuffer;
     struct termios options= {};
     TobyDevice* myTobyDevice;
+    pthread_t *myThread;
 
 
 
