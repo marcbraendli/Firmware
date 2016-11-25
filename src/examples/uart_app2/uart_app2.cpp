@@ -60,11 +60,11 @@ int uart_app2_main(int argc, char *argv[])
     saio.sa_handler = signal_handler_IO;
     saio.sa_flags = 0;
     //saio.sa_restorer = NULL;
-    sigaction(SIGINT,&saio,NULL);
+    sigaction(1,&saio,NULL);
 
     fcntl(uart0_filestream , F_SETFL, FNDELAY);
     fcntl(uart0_filestream , F_SETOWN, getpid());
-    fcntl(uart0_filestream , F_SETFL,  O_ASYNC );
+    fcntl(uart0_filestream , F_SETFL,  O_SYNC );
 
     tcgetattr(uart0_filestream, &options);
     options.c_cflag &= ~CSIZE;
