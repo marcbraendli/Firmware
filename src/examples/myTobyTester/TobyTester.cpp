@@ -170,6 +170,10 @@ void testToby(){
     PX4_INFO("writeToby Test : ");
     writeToby(myFilestream);
     PX4_INFO("writeToby Test OK");
+    writeToby(myFilestream);
+    writeToby(myFilestream);
+
+
 
 
     //read from external uart : visual test is required

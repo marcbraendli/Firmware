@@ -255,7 +255,8 @@ ssize_t	Toby::write(device::file_t *filp, const char *buffer, size_t buflen){
     PX4_INFO("Toby::write() is called");
 
 
-    buffer2->putItem(buffer, buflen);
+   // buffer2->putItem(buffer, buflen);
+    buffer2->putString(buffer,buflen);
     return buflen;
 
 
@@ -439,6 +440,7 @@ int Toby::open(device::file_t *filp){
     workerParameters.writeBuffer= writeBuffer;
     workerParameters.buffer2 = buffer2;
 
+    //define the worker with the declareted parameters
     writerThread = new pthread_t;
     pthread_create(writerThread, NULL, writeWork, (void*)&workerParameters);
 
@@ -451,6 +453,9 @@ int Toby::open(device::file_t *filp){
 }
 
 
+// this is the write thread, reads from the buffer and writes to tobyDevice
+// only for testing of concept and Buffer threadsafety needed, later, we make a AT-Commander, which
+// will control our MavLink data
 void* Toby::writeWork(void *arg){
 
     PX4_INFO("writeHard Thread started");
@@ -459,14 +464,16 @@ void* Toby::writeWork(void *arg){
     BoundedBuffer* buffer2 = arguments->buffer2;
     TobyDevice* myDevice = arguments->myDevice;
 
-    //we need some space, only once needed
+    //we need some space, only once needed ... the size of the space is not fix yet,
+    //TODO : FIX THE SPACE-PROBLEM, how much space should we give? Or maybe, it is saved directly in bufferer (more elegant)
     char* data = (char*)malloc(20*sizeof(char));
 
 
 
-    for(int i = 0; i < 1; ++i){
+    for(int i = 0; i < 4; ++i){
         //get data from buffer
-        int size = buffer2->getItem(data);
+   //     int size = buffer2->getItem(data);
+        int size = buffer2->getString(data);
         //write data to hardware
         myDevice->write(data,size);
     }
