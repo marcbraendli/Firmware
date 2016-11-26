@@ -6,7 +6,7 @@
 # modification, are permitted provided that the following conditions
 # are met:
 #
-# 1. Redistributions of source code must retain the above copyright
+# 1. Redistributionsd of source code must retain the above copyright
 #    notice, this list of conditions and the following disclaimer.
 # 2. Redistributions in binary form must reproduce the above copyright
 #    notice, this list of conditions and the following disclaimer in
@@ -40,6 +40,8 @@ px4_add_module(
 		toby.h
                 tobyDevice.cpp
                 tobyDevice.h
+		boundedBuffer.cpp
+		boundedBuffer.h
         DEPENDS
                 platforms__common
         )

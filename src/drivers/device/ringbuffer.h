@@ -69,7 +69,7 @@ public:
 	bool			put(int64_t val);
 	bool			put(uint64_t val);
 	bool			put(float val);
-	bool			put(double val);
+    bool			put(double val);
 
 	/**
 	 * Force an item into the buffer, discarding an older item if there is not space.

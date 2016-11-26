@@ -5,6 +5,7 @@
 #include <drivers/device/device_nuttx.h>
 #include <termios.h>
 #include "tobyDevice.h"
+#include "boundedBuffer.h"
 
 
 
@@ -14,6 +15,7 @@ struct myStruct
 {
   TobyDevice* myDevice;
   ringbuffer::RingBuffer* writeBuffer;
+  BoundedBuffer* buffer2;
 };
 
 
@@ -45,6 +47,7 @@ private:
     struct termios options= {};
     pthread_t *writerThread;
     myStruct workerParameters;
+    BoundedBuffer* buffer2;
 
     // our worker thread function, needs to be static, otherwise pthread can't execute (is C, not C++)
     static void *writeWork(void *arg);

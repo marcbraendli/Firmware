@@ -107,7 +107,9 @@ Toby::Toby() :
     unsigned char dest_buffer[13];
 
     memcpy(dest_buffer, tx_buffer, 13);
-    pthread_mutex_init(&Toby::m, NULL);
+  //  pthread_mutex_init(&Toby::m, NULL);
+
+    buffer2 = new BoundedBuffer();
 
 
 
@@ -253,25 +255,8 @@ ssize_t	Toby::write(device::file_t *filp, const char *buffer, size_t buflen){
     PX4_INFO("Toby::write() is called");
 
 
-/*
-    myStruct a;
-   // a.text = myTestText;
-    a.myDevice = myTobyDevice;
-   // a.myDevice->write(myTestText,5);
-
-*/
-
-    unsigned char dest_buffer[13];
-
-    memcpy(dest_buffer, buffer, buflen);
-
-    writeBuffer->put(dest_buffer);
-
-
-    int count = myTobyDevice->write(buffer,buflen);
-    //PX4_INFO("Toby::write() return %d",count);
-
-    return count;
+    buffer2->putItem(buffer, buflen);
+    return buflen;
 
 
 
@@ -452,6 +437,7 @@ int Toby::open(device::file_t *filp){
 
     workerParameters.myDevice= myTobyDevice;
     workerParameters.writeBuffer= writeBuffer;
+    workerParameters.buffer2 = buffer2;
 
     writerThread = new pthread_t;
     pthread_create(writerThread, NULL, writeWork, (void*)&workerParameters);
@@ -467,41 +453,26 @@ int Toby::open(device::file_t *filp){
 
 void* Toby::writeWork(void *arg){
 
-
-
-
     PX4_INFO("writeHard Thread started");
-    myStruct *testing = static_cast<myStruct*>(arg);
+    //extract arguments :
+    myStruct *arguments = static_cast<myStruct*>(arg);
+    BoundedBuffer* buffer2 = arguments->buffer2;
+    TobyDevice* myDevice = arguments->myDevice;
 
-    ringbuffer::RingBuffer* writeBuffer = testing->writeBuffer;
-  //  PX4_INFO("Thread got the value %s",testing->text);
+    //we need some space, only once needed
+    char* data = (char*)malloc(20*sizeof(char));
 
-    const char* myTestText = "HaKLo";
-    char* writeString = NULL;
 
-    if( writeBuffer->get(writeString)){
-        PX4_INFO("Thread sucessfully read from Buffer");
+
+    for(int i = 0; i < 1; ++i){
+        //get data from buffer
+        int size = buffer2->getItem(data);
+        //write data to hardware
+        myDevice->write(data,size);
     }
 
-    sleep(5);
-    if(testing->myDevice == NULL){
-        PX4_INFO("Thread :: got a null-pointer!!");
 
-    }
-
-    PX4_INFO("Thread : Let's write to device");
-    testing->myDevice->write(myTestText,5);
-
-    //TobyDevice *pointer = dynamic_cast<TobyDevice*>(testing->myDevice);
-
-
-
-
-    // pthread_exit();
-
-
-
-    pthread_cond_wait(&v,&m);
+    free(data);
     return NULL;
 
 }
