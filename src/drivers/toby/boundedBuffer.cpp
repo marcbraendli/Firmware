@@ -1,9 +1,9 @@
 #include "boundedBuffer.h"
 #include "px4_log.h"
 
-#define BUFSIZE 1
 
-
+//dirty intializing
+//TODO: Do it in a better way?
 static pthread_mutex_t bufferlock = PTHREAD_MUTEX_INITIALIZER;
 
 BoundedBuffer::BoundedBuffer(){
@@ -17,6 +17,15 @@ BoundedBuffer::BoundedBuffer(){
     head = 0;
     tail = 0;
     numElements=0;
+
+    //we allocate the buffersize we need
+    for(int i = 0; i < BUFSIZE; ++i){
+        myBuffer[i] = (char*)malloc(62*sizeof(char));
+        if(myBuffer[i] == NULL){
+            PX4_INFO("ERROR NO SPACE AVAIABLE");
+        }
+
+    }
 }
 
 BoundedBuffer::~BoundedBuffer(){
@@ -104,6 +113,7 @@ int BoundedBuffer::getItem(char *val){
 int BoundedBuffer::getString(char *val){
 
     pthread_mutex_lock(&bufferlock);
+//    PX4_INFO("getString: hasLock");
 
     while(this->empty()){
         pthread_cond_wait(&isEmpty,&bufferlock);
@@ -111,36 +121,47 @@ int BoundedBuffer::getString(char *val){
     int temp = tail;
     tail = next(tail);
     --numElements;
-    strcpy(val,myBuffer[temp]);
+    memcpy(val,myBuffer[temp],mySize[temp]);
+    //free(myBuffer[head]);
+    temp = mySize[temp];
     pthread_cond_signal(&isFull);
+ //   PX4_INFO("getString: leaveLock");
+
     pthread_mutex_unlock(&bufferlock);
-    pthread_cond_signal(&isFull);
-    pthread_mutex_unlock(&bufferlock);
-    return mySize[temp];
+    return temp;
 
 }
 
 bool BoundedBuffer::putString(const char* val, size_t size){
 
-    PX4_INFO("boundedBuffer: put String is called()");
-
+   // PX4_INFO("boundedBuffer: put String is called() %s",val);
 
     pthread_mutex_lock(&bufferlock);
-    PX4_INFO("boundedBuffer: hasLock");
+   // PX4_INFO("putString: hasLock");
 
     while(this->full()){
-        PX4_INFO("boundedBuffer: isFull");
+       // PX4_INFO("boundedBuffer: isFull");
 
         pthread_cond_wait(&isFull,&bufferlock);
     }
-    myBuffer[head] = (char*)malloc(size);
+    //myBuffer[head] = (char*)malloc(size*sizeof(char));
+   while(myBuffer[head]== NULL){
+       PX4_INFO("ERROR PUT STRING couldn't get space from malloc");
+      // myBuffer[head] = (char*)malloc(size*sizeof(char));
+       sleep(2);
 
-    strcpy(myBuffer[head],val);
-    free(myBuffer[head]);
+   }
+
+    memcpy(myBuffer[head],val,size);
+  //  PX4_INFO("boundedBuffer: saved String is %s",myBuffer[head]);
+
     mySize[head] = size;
     numElements++;
     head = next(head);
+
     pthread_cond_signal(&isEmpty);
+  //  PX4_INFO("putString: leaveLock");
+
     pthread_mutex_unlock(&bufferlock);
 
 

@@ -43,8 +43,6 @@
 #include <drivers/drv_toby.h>
 #include <drivers/toby/tobyDevice.h>
 
-#include <drivers/device/ringbuffer.h>
-
 #include <stdio.h>
 #include <termios.h>
 
@@ -80,7 +78,6 @@ int set_flowcontrol(int fd, int control);
 void *doClose(void *arg);
 void *writeHard(void *arg);
 int toby_init();
-void ringBufferTest();
 int writeHardHelper(TobyDevice* myDevice);
 
 
@@ -95,21 +92,9 @@ Toby::Toby() :
 #endif
 {
 
-	// force immediate init/device registration
 	init();
-  //  writeBuffer = new ringbuffer::RingBuffer(16,sizeof(char));
-   // ringbuffer::RingBuffer *myBuffer = new ringbuffer::RingBuffer(2,sizeof(&writeBuffer));
-
-
-    writeBuffer= new ringbuffer::RingBuffer(16,sizeof(char*));
-
-    unsigned char tx_buffer[]={"Hallo Michael"};
-    unsigned char dest_buffer[13];
-
-    memcpy(dest_buffer, tx_buffer, 13);
-  //  pthread_mutex_init(&Toby::m, NULL);
-
     buffer2 = new BoundedBuffer();
+    readBuffer = new BoundedBuffer();
 
 
 
@@ -130,8 +115,6 @@ Toby::~Toby()
 int Toby::init()
 {
     PX4_INFO("TOBY::init");
-   // ringBufferTest();   //Test
-   // writeBuffer = new ringbuffer::RingBuffer(20,sizeof(char));
 #ifdef __PX4_NUTTX
 	CDev::init();
 #else
@@ -218,8 +201,9 @@ ssize_t	Toby::read(device::file_t *filp, char *buffer, size_t buflen)
     */
 
     //new function
-    PX4_INFO("Toby::read() is called");
+  //  PX4_INFO("Toby::read() is called");
 
+    //readBuffer->getString()
     return myTobyDevice->read(buffer,buflen);
 
 }
@@ -252,12 +236,13 @@ ssize_t	Toby::write(device::file_t *filp, const char *buffer, size_t buflen){
   }
     */
     //the new function
-    PX4_INFO("Toby::write() is called");
+  //  PX4_INFO("Toby::write() is called");
 
 
-   // buffer2->putItem(buffer, buflen);
-    buffer2->putString(buffer,buflen);
-    return buflen;
+     buffer2->putString(buffer,buflen);
+     //sleep(1);
+    // return myTobyDevice->write(buffer,buflen);
+     return buflen;
 
 
 
@@ -424,12 +409,11 @@ int Toby::open(device::file_t *filp){
     CDev::open(filp);
     //open TobyDevice, is not possible in an other way
 
-
+    //
     this->myTobyDevice = new TobyDevice();
-   // myTobyDevice->write(myTestText,5);
 
     if(this->myTobyDevice == NULL){
-        PX4_INFO("myTobyDevice is a NULL-Pointer!!!!");
+        PX4_INFO("ERROR myTobyDevice is a NULL-Pointer!!!!");
 
     }
 
@@ -437,12 +421,22 @@ int Toby::open(device::file_t *filp){
     // Dangerous passing the myTobyDevice to Thread ... isn't information hiding anymore???!
 
     workerParameters.myDevice= myTobyDevice;
-    workerParameters.writeBuffer= writeBuffer;
+   // workerParameters.writeBuffer= writeBuffer;
     workerParameters.buffer2 = buffer2;
 
     //define the worker with the declareted parameters
     writerThread = new pthread_t;
     pthread_create(writerThread, NULL, writeWork, (void*)&workerParameters);
+
+
+    //same for readerthread
+    readerParameters.buffer2 = readBuffer;
+    readerParameters.myDevice = myTobyDevice;
+    pthread_create(readerThread, NULL, readWork, (void*)&readerParameters);
+
+
+
+
 
 
 
@@ -453,12 +447,14 @@ int Toby::open(device::file_t *filp){
 }
 
 
+
+
 // this is the write thread, reads from the buffer and writes to tobyDevice
 // only for testing of concept and Buffer threadsafety needed, later, we make a AT-Commander, which
 // will control our MavLink data
 void* Toby::writeWork(void *arg){
 
-    PX4_INFO("writeHard Thread started");
+    PX4_INFO("writeWork Thread started");
     //extract arguments :
     myStruct *arguments = static_cast<myStruct*>(arg);
     BoundedBuffer* buffer2 = arguments->buffer2;
@@ -466,20 +462,60 @@ void* Toby::writeWork(void *arg){
 
     //we need some space, only once needed ... the size of the space is not fix yet,
     //TODO : FIX THE SPACE-PROBLEM, how much space should we give? Or maybe, it is saved directly in bufferer (more elegant)
-    char* data = (char*)malloc(20*sizeof(char));
+    char* data = (char*)malloc(62*sizeof(char));
 
 
+    // For debugging
+    if(data == NULL){
+        PX4_INFO("ERROR writeWork couldn't get space from malloc");
+        return NULL;
+    }
 
-    for(int i = 0; i < 4; ++i){
+    int size = 0;
+
+ //   for(int i = 0; i < 3; ++i)
+    //TODO : Implement thread should exit logik
+    while(1){
         //get data from buffer
    //     int size = buffer2->getItem(data);
-        int size = buffer2->getString(data);
+        size = buffer2->getString(data);
+       // PX4_INFO("Thread got data: %s", data);
         //write data to hardware
+        if(size > 62){
+            PX4_INFO("ERROR Thread has to write size: %d",size);
+        }
+    //    PX4_INFO("write worker is working");
+
         myDevice->write(data,size);
     }
 
+    sleep(2);
+
 
     free(data);
+    return NULL;
+
+}
+
+
+// this is the read thread, reads from the buffer and returns it in the toby read function.
+// only for testing of concept and Buffer threadsafety needed, later, we make a AT-Commander, which
+// will control our MavLink data
+void* Toby::readWork(void *arg){
+
+    PX4_INFO("readWork Thread started");
+    //extract arguments :
+    myStruct *arguments = static_cast<myStruct*>(arg);
+    BoundedBuffer* readBuffer = arguments->buffer2;
+    TobyDevice* myDevice = arguments->myDevice;
+
+    if(myDevice == NULL || readBuffer == NULL){
+        PX4_INFO("readWork Thread parameters invalid");
+
+    }
+
+
+
     return NULL;
 
 }
@@ -489,6 +525,9 @@ void* Toby::writeWork(void *arg){
 
 //****************************hilfsfunktionen********************************
 
+
+// not needed anymore, just for debugging
+//TODO: Delete
 void *doClose(void *arg)
 {
 
@@ -557,17 +596,5 @@ int set_flowcontrol(int fd, int control)
     return 0;
 }
 
-void ringBufferTest(){
 
-
-    unsigned char tx_buffer[]={"Hallo Michael"};
-
-    ringbuffer::RingBuffer *x = new ringbuffer::RingBuffer(10,sizeof(char));
-    x->put('h');
-
-
-    x->get(tx_buffer[1]);
-
-    PX4_INFO("Received: %s", tx_buffer);
-}
 

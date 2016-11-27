@@ -1,6 +1,5 @@
 #include <drivers/device/device.h>
 #include <px4_config.h>
-#include <drivers/device/ringbuffer.h>
 
 #include <drivers/device/device_nuttx.h>
 #include <termios.h>
@@ -14,8 +13,7 @@
 struct myStruct
 {
   TobyDevice* myDevice;
-  ringbuffer::RingBuffer* writeBuffer;
-  BoundedBuffer* buffer2;
+  BoundedBuffer* buffer2;  //TODO rename
 };
 
 
@@ -39,24 +37,25 @@ public:
     int	ioctl(device::file_t *filp, int cmd, unsigned long arg);
     int	poll(device::file_t *filp, struct pollfd *fds, bool setup);
 
-    TobyDevice* myTobyDevice;
 
 
 private:
-    ringbuffer::RingBuffer *writeBuffer;
+    TobyDevice* myTobyDevice;
+
     struct termios options= {};
     pthread_t *writerThread;
-    myStruct workerParameters;
-    BoundedBuffer* buffer2;
+    pthread_t *readerThread;
+
+    myStruct workerParameters; //TODO rename
+    myStruct readerParameters;
+
+    BoundedBuffer* buffer2; //TODO rename
+    BoundedBuffer* readBuffer;
+
 
     // our worker thread function, needs to be static, otherwise pthread can't execute (is C, not C++)
     static void *writeWork(void *arg);
-
-    static pthread_cond_t v;
-    static pthread_mutex_t m;
-
-    //
-
+    static void *readWork(void *arg);
 
 
 };

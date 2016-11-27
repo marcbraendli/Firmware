@@ -7,7 +7,7 @@
 
 //Number of buffered elements in buffer, later, we may change to a parameter in constructor with enum, easier to test)
 enum{
-    BUFSIZE = 1,
+    BUFSIZE = 5,
 };
 
 

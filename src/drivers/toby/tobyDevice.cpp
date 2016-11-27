@@ -37,7 +37,7 @@ TobyDevice::TobyDevice()
     uart0_filestream = uart_open(&options);
     PX4_INFO("opened uart with %d",uart0_filestream);
 
-    pthread_mutex_init(&lock, NULL);
+  //  pthread_mutex_init(&lock, NULL);
 
 }
 
@@ -54,7 +54,7 @@ TobyDevice::~TobyDevice()
 
 ssize_t	TobyDevice::read(char *buffer, size_t buflen)
 {
-    PX4_INFO("read() is called");
+ //   PX4_INFO("read() is called");
     int i = px4_read(uart0_filestream,buffer,buflen);
 
     return i;
@@ -63,20 +63,20 @@ ssize_t	TobyDevice::read(char *buffer, size_t buflen)
 ssize_t	TobyDevice::write(const char *buffer, size_t buflen){
 
 
-     pthread_mutex_lock(&lock);
+     //pthread_mutex_lock(&lock);
     //todo : effizienter implementieren, but how?
 
     //Debugging
-    PX4_INFO("TobyDevice::write() is called with uart0_filestream %d",uart0_filestream);
+ //   PX4_INFO("TobyDevice::write() is called with uart0_filestream %d",uart0_filestream);
 
     int count = 0;
     if (uart0_filestream != -1)
     {
-     PX4_INFO("::write() uart_filstream %d",uart0_filestream);
+   //  PX4_INFO("::write() uart_filstream %d",uart0_filestream);
 
 
         count = px4_write(uart0_filestream, buffer, buflen);
-       PX4_INFO("::write() count = %d",count);
+    //   PX4_INFO("::write() count = %d",count);
 
         if (count < 0)
         {
@@ -87,10 +87,12 @@ ssize_t	TobyDevice::write(const char *buffer, size_t buflen){
     }
    // close(NULL);
 
-  pthread_mutex_unlock(&lock);
+//  pthread_mutex_unlock(&lock);
     return count;
 }
 
+
+// just a studpid stub is needed for some test's of pthreads
 void* TobyDevice::writeToUart(void *arg){
 
     PX4_INFO("received data in writeToUart()");
@@ -147,7 +149,7 @@ int TobyDeviceHelper::uart_open(struct termios* options){
 
 
     //Debugging
-    PX4_INFO("uart_open() is called");
+  //  PX4_INFO("uart_open() is called");
         pid_t x = ::getpid();
         PX4_INFO("actual thread id : %d",x);
 
@@ -161,7 +163,7 @@ int TobyDeviceHelper::uart_open(struct termios* options){
         PX4_INFO("Unable to Open /dev/ttys6");
 
     }
-    PX4_INFO("open return value /dev/ttys6: %d",localUart0_filestream);
+    //PX4_INFO("open return value /dev/ttys6: %d",localUart0_filestream);
 
     tcgetattr(localUart0_filestream, options);
 
@@ -197,14 +199,14 @@ int TobyDeviceHelper::uart_open(struct termios* options){
 
     //*******************************************************************
 
-    PX4_INFO("uart_open() terminates with return %i",localUart0_filestream);
+    //PX4_INFO("uart_open() terminates with return %i",localUart0_filestream);
 
     //if failed, return = -1
     return localUart0_filestream;
 
 }
 
-
+//TODO : px4_close goes over a hard coded number ... that might not work allways, was just a dirty fix
 void *TobyDeviceHelper::doClose(void *arg)
 {
 

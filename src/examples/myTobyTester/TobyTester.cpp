@@ -62,7 +62,7 @@ namespace TobyTester{
 
 void testToby();
 int openToby();
-void writeToby(int uart0_filestream);
+void writeToby(int uart0_filestream, char* tx, int size);
 void readToby(int uart0_filestream);
 void closeToby(int uart0_filestream);
 void startMavlink();
@@ -134,6 +134,8 @@ void testToby(){
 
     int myFilestream;
     int myTestFilestream;
+    char tx_buffer[]={"Hallo Michael"};
+    char tx2_buffer[]={"Tschau Peter"};
 
 
     //start the toby-driver direct in the Unittest : Not possible yet
@@ -168,10 +170,10 @@ void testToby(){
 
     //test writing to external uart : visual test required
     PX4_INFO("writeToby Test : ");
-    writeToby(myFilestream);
+    writeToby(myFilestream, tx_buffer,13);
     PX4_INFO("writeToby Test OK");
-    writeToby(myFilestream);
-    writeToby(myFilestream);
+    writeToby(myFilestream, tx2_buffer,12);
+    writeToby(myFilestream, tx_buffer,13);
 
 
 
@@ -210,13 +212,14 @@ int openToby(){
     return uart0_filestream;
 }
 
-void writeToby(int uart0_filestream){
+void writeToby(int uart0_filestream, char* tx, int size){
 
-    unsigned char tx_buffer[]={"Hallo Michael"};
+
+
 
     if (uart0_filestream != -1)
     {
-        int count = write(uart0_filestream, tx_buffer, 13);
+        int count = write(uart0_filestream, tx, size);
         if (count < 0)
         {
             PX4_ERR("UART TX error");
