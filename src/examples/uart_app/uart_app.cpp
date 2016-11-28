@@ -77,7 +77,7 @@ int uart_app_main(int argc, char *argv[])
     char* string_end ='\0';
     int received =0;
 
-    const char *at_command_send[5]={"AT\r","AT\r","AT+CREG?\r","AT+CGMR\r","AT+CGMM\r"};
+    const char *at_command_send[5]={"AE0\r","AT\r","AT+CREG?\r","AT+CGMR\r","AT+CGMM\r"};
     int at_command_send_size[5]={3,3,9,8,8};
 
     int i =0;
@@ -96,14 +96,14 @@ int uart_app_main(int argc, char *argv[])
             {
                 PX4_INFO("UART TX error");
             }
-            i++;
+
             state=Receive;
             break;
         }
 
         case Receive:
         {
-            int poll_ret = px4_poll(&fds, 1, 500);
+            int poll_ret = px4_poll(&fds, 1, 1000);
 
             if (poll_ret == 0)
             {
@@ -124,6 +124,8 @@ int uart_app_main(int argc, char *argv[])
                         PX4_ERR("UART RX error");
                     }
                     strcat(output, rx_buffer);
+                    strncpy(rx_buffer, string_end,100);
+                    //PX4_INFO("RX-Buff check: %s", rx_buffer);
                     received =1;
                 }
             }
@@ -133,11 +135,12 @@ int uart_app_main(int argc, char *argv[])
         case Edit://verarbeiten
         {
             PX4_INFO("Received: %s", output);
+             i++;
 
-            strncpy(rx_buffer, string_end,100);
+
             strncpy(output, string_end,100);
 
-            //PX4_INFO("RX-Buff check: %s", rx_buffer);
+
             //PX4_INFO("Output check: %s", output);
             state=Send;
             received=0;
