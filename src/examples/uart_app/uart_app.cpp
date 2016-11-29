@@ -88,7 +88,7 @@ int uart_app_main(int argc, char *argv[])
     int received =0;
 
 
-#define NUMBER_OF_AT_COMMANDS 35
+#define NUMBER_OF_AT_COMMANDS 46
 
     const char *at_command_send[NUMBER_OF_AT_COMMANDS]={"AT\r",
                                                         "ATE0\r",
@@ -106,17 +106,29 @@ int uart_app_main(int argc, char *argv[])
                                                         "AT+CREG=2\r",
                                                         "AT+CREG?\r",
                                                         "AT+CREG=0\r",
+                                                        "AT+CREG=0\r",
                                                         "AT+CSQ\r",
                                                         "AT+CREG?\r",
                                                         "AT+CPIN=\"4465\"\r",
                                                         "AT+COPS?\r",
                                                         "AT+CSQ\r",
                                                         "AT+CREG?\r",
-                                                        "AT+CREG?\r",
+                                                        "AT+CGREG?\r",
                                                         "AT+UBANDSEL?\r",
                                                         "AT+COPS?\r",
                                                         "AT+CSQ\r",
                                                         "AT+CREG?\r",
+                                                        "AT+CGREG?\r",
+                                                        "AT+UBANDSEL?\r",
+                                                        "AT+COPS?\r",
+                                                        "AT+CSQ\r",
+                                                        "AT+CREG?\r",
+                                                        "AT+CGREG?\r",
+                                                        "AT+UBANDSEL?\r",
+                                                        "AT+COPS?\r",
+                                                        "AT+CSQ\r",
+                                                        "AT+CREG?\r",
+                                                        "AT+CGREG?\r",
                                                         "AT+UPSD=0,100,4\r",
                                                         "AT+COPS?\r",
                                                         "AT+CREG?\r",
