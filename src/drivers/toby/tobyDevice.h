@@ -36,12 +36,15 @@ public:
 
 private:
     int uart0_filestream;
+
     struct termios options= {};
     pthread_mutex_t lock;
 
 
 
 };
+
+
 
 
 #endif

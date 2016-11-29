@@ -95,7 +95,7 @@ Toby::Toby() :
 	init();
     buffer2 = new BoundedBuffer();
     readBuffer = new BoundedBuffer();
-
+    done = true;
 
 
 
@@ -203,6 +203,13 @@ ssize_t	Toby::read(device::file_t *filp, char *buffer, size_t buflen)
     //new function
     PX4_INFO("Toby::read() is called");
 
+
+
+
+
+
+
+
     //readBuffer->getString()
     //return myTobyDevice->read(buffer,buflen);
     int i = 0;
@@ -304,8 +311,12 @@ int	Toby::poll(device::file_t *filp, struct pollfd *fds, bool setup){
    // int poll_return = myTobyDevice->poll(fds,setup);
     PX4_INFO("poll() is called");
 
+
+
+
+
     if(!readBuffer->empty()){
-        PX4_INFO("poll() return 1, data avaiable");
+        PX4_INFO("Toby : poll() return 1, data avaiable");
         poll_notify(POLLIN);
         poll_notify_one(fds, POLLIN);
         return  1;
@@ -313,13 +324,13 @@ int	Toby::poll(device::file_t *filp, struct pollfd *fds, bool setup){
     }
 
     else{
-        PX4_INFO("poll() return 0, no data avaiable");
+        PX4_INFO("Toby : poll() return 0, no data avaiable");
         return 0;
     }
 
 /*
 
-    PX4_INFO("poll() is called with return %d",poll_return);
+    PX4_INFO("poll() is called with return %d",&poll_return);
 
     if(poll_return > 0){
 
@@ -443,24 +454,31 @@ int Toby::open(device::file_t *filp){
 
     }
 
+
+
+
+
+    //same for readerthread
+
+
     //****************Test some threading thing's****************
     // Dangerous passing the myTobyDevice to Thread ... isn't information hiding anymore???!
 
     workerParameters.myDevice= myTobyDevice;
     workerParameters.buffer2 = buffer2;
+    workerParameters.readBuffer = this->readBuffer;
 
     //define the worker with the declareted parameters
     writerThread = new pthread_t;
     pthread_create(writerThread, NULL, writeWork, (void*)&workerParameters);
 
 
-    //same for readerthread
-
     readerParameters.myDevice = myTobyDevice;
-    readerParameters.buffer2 = readBuffer;
+    readerParameters.readBuffer = this->readBuffer;
     readerThread = new pthread_t;
-
     pthread_create(readerThread, NULL, readWork, (void*)&readerParameters);
+
+
 
 
 
@@ -489,6 +507,7 @@ void* Toby::writeWork(void *arg){
     BoundedBuffer* buffer2 = arguments->buffer2;
     TobyDevice* myDevice = arguments->myDevice;
 
+
     //we need some space, only once needed ... the size of the space is not fix yet,
     //TODO : FIX THE SPACE-PROBLEM, how much space should we give? Or maybe, it is saved directly in bufferer (more elegant)
     char* data = (char*)malloc(62*sizeof(char));
@@ -502,6 +521,7 @@ void* Toby::writeWork(void *arg){
 
     int size = 0;
 
+
  //   for(int i = 0; i < 3; ++i)
     //TODO : Implement thread should exit logik
     while(1){
@@ -513,9 +533,10 @@ void* Toby::writeWork(void *arg){
         if(size > 62){
             PX4_INFO("ERROR Thread has to write size: %d",size);
         }
-    //    PX4_INFO("write worker is working");
+         // PX4_INFO("write worker is working");
 
-        myDevice->write(data,size);
+          myDevice->write(data,size);
+
     }
 
     sleep(2);
@@ -535,14 +556,15 @@ void* Toby::readWork(void *arg){
     PX4_INFO("readWork Thread started");
     //extract arguments :
     myStruct *arguments = static_cast<myStruct*>(arg);
-    BoundedBuffer* readBuffer = arguments->buffer2;
+    BoundedBuffer* readBuffer = arguments->readBuffer;
     TobyDevice* myDevice = arguments->myDevice;
-    //TobyDevice* myDevice = new TobyDevice();
+
 
 
 
     // a ty
     char* buffer = (char*)malloc(60*sizeof(char));
+
 
     if(myDevice == NULL || readBuffer == NULL){
         PX4_INFO("readWork Thread parameters invalid");
@@ -555,7 +577,7 @@ void* Toby::readWork(void *arg){
         i = myDevice->poll(NULL,0);
         if(i>0){
           u =  myDevice->read(buffer,60);
-          PX4_INFO("readWorker : poll was successfull, number of read:  %d ",&u);
+          PX4_INFO("readWorker : poll was successfull, number of read:  %d ",u);
            readBuffer->putString(buffer,u);
 
         }
@@ -564,6 +586,9 @@ void* Toby::readWork(void *arg){
 
         }
         sleep(1);
+        if(buffer == NULL){
+            PX4_INFO("READ WORKER NULLPOINTER");
+        }
 
     }
 

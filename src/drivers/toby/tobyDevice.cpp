@@ -34,8 +34,10 @@ TobyDevice::TobyDevice()
 {
     PX4_INFO("this is TobyDeviceHelper()");
 
+
     uart0_filestream = uart_open(&options);
-    PX4_INFO("opened uart with %d",uart0_filestream);
+    PX4_INFO("opened uart with %d",&uart0_filestream);
+
 
   //  pthread_mutex_init(&lock, NULL);
 
@@ -54,8 +56,11 @@ TobyDevice::~TobyDevice()
 
 ssize_t	TobyDevice::read(char *buffer, size_t buflen)
 {
-    PX4_INFO("read() is called with file descriptor %d",&uart0_filestream);
-    int i = px4_read(uart0_filestream,buffer,buflen);
+    PX4_INFO("read() is called with file descriptor %d", uart0_filestream);
+    int i = px4_read(4,buffer,buflen);
+
+    //int i = px4_read(uart0_filestream,buffer,buflen);
+
 
     return i;
 }
@@ -67,12 +72,12 @@ ssize_t	TobyDevice::write(const char *buffer, size_t buflen){
     //todo : effizienter implementieren, but how?
 
     //Debugging
- //   PX4_INFO("TobyDevice::write() is called with uart0_filestream %d",uart0_filestream);
+   // PX4_INFO("TobyDevice::write() is called with uart0_filestream %d",uart0_filestream);
 
     int count = 0;
     if (uart0_filestream != -1)
     {
-   //  PX4_INFO("::write() uart_filstream %d",uart0_filestream);
+        PX4_INFO("TobyDevice::write() uart_filstream %d",uart0_filestream);
 
 
         count = px4_write(uart0_filestream, buffer, buflen);
@@ -118,8 +123,11 @@ int	TobyDevice::poll(struct pollfd *fds, bool setup){
 
 
     px4_pollfd_struct_t fds1[1];
-    fds1[0].fd = uart0_filestream;
+   // fds1[0].fd = uart0_filestream;
+    fds1[0].fd = 4;
     fds1[0].events = POLLIN;
+
+    PX4_INFO("TobyDevice poll() is called with file descriptor %d",uart0_filestream);
 
     int poll_return = px4_poll(fds1,1,500);
     if(poll_return >0){
