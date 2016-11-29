@@ -214,7 +214,7 @@ ssize_t	Toby::read(device::file_t *filp, char *buffer, size_t buflen)
     //return myTobyDevice->read(buffer,buflen);
     int i = 0;
     i = (readBuffer->getString(buffer,buflen));
-    PX4_INFO("Toby::read() read %d",&i);
+    PX4_INFO("Toby::read() read %d",i);
 
     return i;
 
@@ -577,7 +577,6 @@ void* Toby::readWork(void *arg){
         i = myDevice->poll(NULL,0);
         if(i>0){
           u =  myDevice->read(buffer,60);
-          PX4_INFO("readWorker : poll was successfull, number of read:  %d ",u);
            readBuffer->putString(buffer,u);
 
         }
@@ -585,7 +584,6 @@ void* Toby::readWork(void *arg){
             PX4_INFO("readWorker : poll got 0");
 
         }
-        sleep(1);
         if(buffer == NULL){
             PX4_INFO("READ WORKER NULLPOINTER");
         }
@@ -602,7 +600,7 @@ void* Toby::readWork(void *arg){
 
 
 
-//****************************hilfsfunktionen********************************
+//****************************Helperfunctions, may going into a separate header File********************************
 
 
 // not needed anymore, just for debugging
