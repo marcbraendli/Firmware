@@ -201,10 +201,15 @@ ssize_t	Toby::read(device::file_t *filp, char *buffer, size_t buflen)
     */
 
     //new function
-  //  PX4_INFO("Toby::read() is called");
+    PX4_INFO("Toby::read() is called");
 
     //readBuffer->getString()
-    return myTobyDevice->read(buffer,buflen);
+    //return myTobyDevice->read(buffer,buflen);
+    int i = 0;
+    i = (readBuffer->getString(buffer,buflen));
+    PX4_INFO("Toby::read() read %d",&i);
+
+    return i;
 
 }
 
@@ -294,7 +299,26 @@ int	Toby::poll(device::file_t *filp, struct pollfd *fds, bool setup){
 }
 */
     // new function:
-    int poll_return = myTobyDevice->poll(fds,setup);
+
+   // int poll_return = 0;
+   // int poll_return = myTobyDevice->poll(fds,setup);
+    PX4_INFO("poll() is called");
+
+    if(!readBuffer->empty()){
+        PX4_INFO("poll() return 1, data avaiable");
+        poll_notify(POLLIN);
+        poll_notify_one(fds, POLLIN);
+        return  1;
+
+    }
+
+    else{
+        PX4_INFO("poll() return 0, no data avaiable");
+        return 0;
+    }
+
+/*
+
     PX4_INFO("poll() is called with return %d",poll_return);
 
     if(poll_return > 0){
@@ -303,6 +327,8 @@ int	Toby::poll(device::file_t *filp, struct pollfd *fds, bool setup){
         poll_notify_one(fds, POLLIN);
     }
     return poll_return;
+
+    */
 }
 
 
@@ -421,7 +447,6 @@ int Toby::open(device::file_t *filp){
     // Dangerous passing the myTobyDevice to Thread ... isn't information hiding anymore???!
 
     workerParameters.myDevice= myTobyDevice;
-   // workerParameters.writeBuffer= writeBuffer;
     workerParameters.buffer2 = buffer2;
 
     //define the worker with the declareted parameters
@@ -430,8 +455,11 @@ int Toby::open(device::file_t *filp){
 
 
     //same for readerthread
-    readerParameters.buffer2 = readBuffer;
+
     readerParameters.myDevice = myTobyDevice;
+    readerParameters.buffer2 = readBuffer;
+    readerThread = new pthread_t;
+
     pthread_create(readerThread, NULL, readWork, (void*)&readerParameters);
 
 
@@ -439,6 +467,7 @@ int Toby::open(device::file_t *filp){
 
 
 
+    PX4_INFO("Toby:: exit open()");
 
 
 
@@ -478,7 +507,7 @@ void* Toby::writeWork(void *arg){
     while(1){
         //get data from buffer
    //     int size = buffer2->getItem(data);
-        size = buffer2->getString(data);
+        size = buffer2->getString(data,62);
        // PX4_INFO("Thread got data: %s", data);
         //write data to hardware
         if(size > 62){
@@ -508,13 +537,38 @@ void* Toby::readWork(void *arg){
     myStruct *arguments = static_cast<myStruct*>(arg);
     BoundedBuffer* readBuffer = arguments->buffer2;
     TobyDevice* myDevice = arguments->myDevice;
+    //TobyDevice* myDevice = new TobyDevice();
+
+
+
+    // a ty
+    char* buffer = (char*)malloc(60*sizeof(char));
 
     if(myDevice == NULL || readBuffer == NULL){
         PX4_INFO("readWork Thread parameters invalid");
 
     }
+    int i = 0; // poll result handle
+    int u = 0; //size of data received
+    while(1){
+
+        i = myDevice->poll(NULL,0);
+        if(i>0){
+          u =  myDevice->read(buffer,60);
+          PX4_INFO("readWorker : poll was successfull, number of read:  %d ",&u);
+           readBuffer->putString(buffer,u);
+
+        }
+        else{
+            PX4_INFO("readWorker : poll got 0");
+
+        }
+        sleep(1);
+
+    }
 
 
+    PX4_INFO("readWork exit");
 
     return NULL;
 

@@ -37,7 +37,10 @@ public:
 
     // the right ones ****************************************
     bool putString(const char* val, size_t size);
-    int  getString(char* val);
+    bool putString2(const char* val, size_t size); //test
+    //val is the pointer to the buffer, size is the maximal size of space
+    //if the message is bigger than the space, getString return's 0
+    int  getString(char* val, size_t size);
 
     bool empty(void){
         return (numElements == 0);

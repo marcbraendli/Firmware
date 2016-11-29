@@ -54,7 +54,7 @@ TobyDevice::~TobyDevice()
 
 ssize_t	TobyDevice::read(char *buffer, size_t buflen)
 {
- //   PX4_INFO("read() is called");
+    PX4_INFO("read() is called with file descriptor %d",&uart0_filestream);
     int i = px4_read(uart0_filestream,buffer,buflen);
 
     return i;

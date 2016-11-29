@@ -110,7 +110,7 @@ int BoundedBuffer::getItem(char *val){
 
 */
 
-int BoundedBuffer::getString(char *val){
+int BoundedBuffer::getString(char *val, size_t size){
 
     pthread_mutex_lock(&bufferlock);
 //    PX4_INFO("getString: hasLock");
@@ -118,11 +118,22 @@ int BoundedBuffer::getString(char *val){
     while(this->empty()){
         pthread_cond_wait(&isEmpty,&bufferlock);
     }
+
+    if(mySize[tail] > size ){
+        // the requester's buffer isnt' big enough
+        PX4_INFO("boundedBuffer getString requested buffer isn't big enough");
+        pthread_cond_signal(&isFull);
+        pthread_mutex_unlock(&bufferlock);
+        return 0;
+
+    }
+
+
     int temp = tail;
     tail = next(tail);
     --numElements;
     memcpy(val,myBuffer[temp],mySize[temp]);
-    //free(myBuffer[head]);
+    //free(myBuffer[head]); // we call free in deconstructor
     temp = mySize[temp];
     pthread_cond_signal(&isFull);
  //   PX4_INFO("getString: leaveLock");
@@ -166,6 +177,60 @@ bool BoundedBuffer::putString(const char* val, size_t size){
 
 
 
+    return true;
+}
+
+
+bool BoundedBuffer::putString2(const char* val, size_t size){
+
+/*
+    //char* temporärbuffer = (char*)malloc(0*sizeof(char));
+    char** temporaryBuffer = NULL;
+
+    int x = 1;
+    memcpy(temporaryBuffer[head],val,x*8);
+
+
+
+
+
+   // ***************************************
+
+   //rest auffüllen
+ //  memcpy(myBuffer[head],rest,restsize);
+
+
+   int i = 0;
+   while(size >= 8){
+
+       memcpy(myBuffer[head],val+i*8,8);
+       size = size - 8;
+
+       //abfrage is Full fehlt hier noch
+
+       //next element put in
+       mySize[head] = size;
+       numElements++;
+       head = next(head);
+
+
+   }
+
+   if(size >= 0){
+       //rest kopieren
+       restsize = size%8;
+       memcpy(rest,val + i*8,size%8);
+   }
+
+
+
+    pthread_cond_signal(&isEmpty);
+  //  PX4_INFO("putString: leaveLock");
+
+    pthread_mutex_unlock(&bufferlock);
+
+
+*/
     return true;
 }
 
