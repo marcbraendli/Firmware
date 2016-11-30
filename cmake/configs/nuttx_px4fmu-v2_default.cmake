@@ -190,6 +190,7 @@ set(config_module_list
         examples/custom_daemon_app
         examples/subscriber
         examples/myTobyTester
+        examples/uart_app
 
 
 )

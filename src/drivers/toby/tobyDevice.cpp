@@ -55,7 +55,7 @@ TobyDevice::~TobyDevice()
 
 ssize_t	TobyDevice::read(char *buffer, size_t buflen)
 {
-    int i = px4_read(4,buffer,buflen);
+    int i = px4_read(uart0_filestream,buffer,buflen);
     return i;
 }
 
