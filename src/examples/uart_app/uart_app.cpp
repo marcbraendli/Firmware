@@ -88,54 +88,26 @@ int uart_app_main(int argc, char *argv[])
     int received =0;
 
 
-#define NUMBER_OF_AT_COMMANDS 46
+#define NUMBER_OF_AT_COMMANDS 17
 
-    const char *at_command_send[NUMBER_OF_AT_COMMANDS]={"AT\r",
-                                                        "ATE0\r",
+    const char *at_command_send[NUMBER_OF_AT_COMMANDS]={"ATE0\r",
                                                         "AT+CMEE=2\r",
-                                                        "AT+CGMI\r",
-                                                        "AT+CGMM\r",
                                                         "AT+CGMR\r",
                                                         "ATI9\r",
-                                                        "AT+CGSN\r",
-                                                        "AT+CLCK=\"SC\",2\r",
-                                                        "AT+CPIN?\r",
-                                                        "AT+UPSV?\r",
-                                                        "AT+CCLK=?\r",
-                                                        "AT+COPS?\r",
-                                                        "AT+CREG=2\r",
-                                                        "AT+CREG?\r",
-                                                        "AT+CREG=0\r",
-                                                        "AT+CREG=0\r",
-                                                        "AT+CSQ\r",
-                                                        "AT+CREG?\r",
                                                         "AT+CPIN=\"4465\"\r",
-                                                        "AT+COPS?\r",
+                                                        "AT+CLCK=\"SC\",2\r",
+                                                        "AT+CREG=2\r",
+                                                        "AT+CREG=0\r",
                                                         "AT+CSQ\r",
-                                                        "AT+CREG?\r",
-                                                        "AT+CGREG?\r",
-                                                        "AT+UBANDSEL?\r",
-                                                        "AT+COPS?\r",
-                                                        "AT+CSQ\r",
-                                                        "AT+CREG?\r",
-                                                        "AT+CGREG?\r",
-                                                        "AT+UBANDSEL?\r",
-                                                        "AT+COPS?\r",
-                                                        "AT+CSQ\r",
-                                                        "AT+CREG?\r",
-                                                        "AT+CGREG?\r",
-                                                        "AT+UBANDSEL?\r",
-                                                        "AT+COPS?\r",
-                                                        "AT+CSQ\r",
-                                                        "AT+CREG?\r",
-                                                        "AT+CGREG?\r",
-                                                        "AT+UPSD=0,100,4\r",
-                                                        "AT+COPS?\r",
-                                                        "AT+CREG?\r",
-                                                        "AT+UPSDA=0,3\r",
-                                                        "AT+COPS?\r",
-                                                        "AT+CREG?\r",
-                                                        "AT+UPING=\"www.google.com\"\r"};
+                                                        "AT+UREG?\r",
+                                                        "AT+CPIN=\"4465\"\r",
+                                                        "AT+CLCK=\"SC\",2\r",
+                                                        "AT+CGMR\r",
+                                                        "ATI9\r",
+                                                        "at+upsd=0,100,3\r",
+                                                        "at+upsda=0,3\r",
+                                                        "at+uping=\"www.google.ch\"\r"
+                                                       };
 
     //int at_command_send_size[]={5,8,8,5,8,9,15,15,16,13};
 
@@ -145,7 +117,7 @@ int uart_app_main(int argc, char *argv[])
     int i =0;
     int lenght =0;
     State state =Send;
-    while(i<NUMBER_OF_AT_COMMANDS-1)
+    while(i<NUMBER_OF_AT_COMMANDS+10)
     {
 
         switch(state)
@@ -162,10 +134,12 @@ int uart_app_main(int argc, char *argv[])
             int count = write(uart0_filestream, at_command_send[i], lenght);
 
 
+
             if (count < 0)
             {
                 PX4_INFO("UART TX error");
             }
+            usleep(0.1);
 
             state=Receive;
             break;
@@ -208,7 +182,13 @@ int uart_app_main(int argc, char *argv[])
             i++;
             strncpy(output, string_end,100);
             //PX4_INFO("Output check: %s", output);
-            state=Send;
+            if(i > NUMBER_OF_AT_COMMANDS){
+               state=Receive;
+            }
+            else{
+                state = Send;
+            }
+
             received=0;
             break;
         }
