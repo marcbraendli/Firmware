@@ -43,6 +43,10 @@
 #include <drivers/drv_toby.h>
 #include <drivers/toby/tobyDevice.h>
 
+
+#include <drivers/toby/atCommander.h>
+
+
 #include <stdio.h>
 #include <termios.h>
 
@@ -81,6 +85,11 @@ int toby_init();
 int writeHardHelper(TobyDevice* myDevice);
 
 
+//signaling mutex for test, TODO: delet
+//static pthread_mutex_t pollingMutex = PTHREAD_MUTEX_INITIALIZER;
+
+
+
 
 Toby::Toby() :
 #ifdef __PX4_NUTTX
@@ -93,9 +102,11 @@ Toby::Toby() :
 {
 
 	init();
-    buffer2 = new BoundedBuffer();
+    writeBuffer = new BoundedBuffer();
     readBuffer = new BoundedBuffer();
     done = true;
+    pthread_cond_init(&pollEventSignal,NULL);
+
 
 
 
@@ -251,7 +262,7 @@ ssize_t	Toby::write(device::file_t *filp, const char *buffer, size_t buflen){
   //  PX4_INFO("Toby::write() is called");
 
 
-     buffer2->putString(buffer,buflen);
+     writeBuffer->putString(buffer,buflen);
      //sleep(1);
     // return myTobyDevice->write(buffer,buflen);
      return buflen;
@@ -465,29 +476,41 @@ int Toby::open(device::file_t *filp){
     // Dangerous passing the myTobyDevice to Thread ... isn't information hiding anymore???!
 
     workerParameters.myDevice= myTobyDevice;
-    workerParameters.buffer2 = buffer2;
+    workerParameters.writeBuffer = writeBuffer;
     workerParameters.readBuffer = this->readBuffer;
 
     //define the worker with the declareted parameters
-    writerThread = new pthread_t;
+
+
+   // writerThread = new pthread_t;
     pthread_create(writerThread, NULL, writeWork, (void*)&workerParameters);
 
 
     readerParameters.myDevice = myTobyDevice;
     readerParameters.readBuffer = this->readBuffer;
     readerThread = new pthread_t;
-    pthread_create(readerThread, NULL, readWork, (void*)&readerParameters);
+   // pthread_create(readerThread, NULL, readWork, (void*)&readerParameters);
 
 
 
+    //***************Initialize the at-CommanderThread which hold's the Statemachine********
 
 
+    atCommanderParameters.myDevice = myTobyDevice;
+    atCommanderParameters.readBuffer = readBuffer;
+    atCommanderParameters.writeBuffer= writeBuffer;
+    atCommanderThread = new pthread_t;
+    pthread_create(atCommanderThread, NULL, atCommander::atCommanderStart, (void*)&atCommanderParameters);
 
+
+    pollingThreadParameters.myDevice = myTobyDevice;
+    pollingThread = new pthread_t;
 
 
     PX4_INFO("Toby:: exit open()");
 
 
+    usleep(100);
 
 
     return OK;
@@ -504,7 +527,7 @@ void* Toby::writeWork(void *arg){
     PX4_INFO("writeWork Thread started");
     //extract arguments :
     myStruct *arguments = static_cast<myStruct*>(arg);
-    BoundedBuffer* buffer2 = arguments->buffer2;
+    BoundedBuffer* writeBuffer = arguments->writeBuffer;
     TobyDevice* myDevice = arguments->myDevice;
 
 
@@ -525,9 +548,10 @@ void* Toby::writeWork(void *arg){
  //   for(int i = 0; i < 3; ++i)
     //TODO : Implement thread should exit logik
     while(1){
+
         //get data from buffer
-   //     int size = buffer2->getItem(data);
-        size = buffer2->getString(data,62);
+   //     int size = writeBuffer->getItem(data);
+        size = writeBuffer->getString(data,62);
        // PX4_INFO("Thread got data: %s", data);
         //write data to hardware
         if(size > 62){
@@ -596,6 +620,7 @@ void* Toby::readWork(void *arg){
     return NULL;
 
 }
+
 
 
 

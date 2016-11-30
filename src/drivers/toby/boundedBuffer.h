@@ -3,6 +3,8 @@
 #include <string.h>
 #include <semaphore.h>
 
+#ifndef BOUNDEDBUFFER
+#define BOUNDEDBUFFER
 
 
 //Number of buffered elements in buffer, later, we may change to a parameter in constructor with enum, easier to test)
@@ -91,3 +93,6 @@ private:
 
 
 };
+
+
+#endif
