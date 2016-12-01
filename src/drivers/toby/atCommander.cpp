@@ -51,13 +51,15 @@ void atCommander::process(Event e){
         if(e == evReadDataAvaiable){
             PX4_INFO("do some reading");
 
-            int i = myDevice->poll(NULL,0);
-            if(i>0){
               int u =  myDevice->read(temporaryBuffer,60);
                readBuffer->putString(temporaryBuffer,u);
+                if(u>0){
+                    PX4_INFO("atCommander : successfull reading");
 
             }
 
+
+            usleep(200);
             currentState = WaitState;
         }
 
@@ -107,17 +109,39 @@ void* atCommander::atCommanderStart(void* arg){
     TobyDevice *atTobyDevice = arguments->myDevice;
 
 
-    atCommander *atCommanderFSM = new atCommander(atTobyDevice,atReadBuffer,atWriteBuffer);
+  //  atCommander *atCommanderFSM = new atCommander(atTobyDevice,atReadBuffer,atWriteBuffer);
+  //  atCommanderFSM->process(evInitOk);
+    int poll_return = 0;
+    int write_return = 0; // number data to write
+    int read_return = 0;
+    char* temporaryBuffer = (char*)malloc(62*sizeof(char));
 
     while(1){
  //       atCommanderFSM->process(evWriteDataAvaiable);
   //    usleep(100);
 
+        /*
+        pthread_mutex_lock(&Toby::pollingMutex);
+
+        pthread_cond_wait(&Toby::pollEventSignal,&Toby::pollingMutex);
 
         PX4_INFO("AT_COMMANDER: passing cond_wait");
 
         atCommanderFSM->process(evReadDataAvaiable);
+       // pthread_mutex_unlock(&Toby::pollingMutex);
         usleep(100);
+*/
+
+        poll_return = (atTobyDevice->poll(NULL,true));
+        if(poll_return > 0){
+           read_return =  atTobyDevice->read(temporaryBuffer,62);
+           atReadBuffer->putString(temporaryBuffer,read_return);
+        }
+
+        write_return =  atWriteBuffer->getString(temporaryBuffer,62);
+        atTobyDevice->write(temporaryBuffer,write_return);
+
+
 
 
     }

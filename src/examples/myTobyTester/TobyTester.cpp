@@ -101,7 +101,6 @@ int TobyTester_main(int argc, char *argv[])
 
 
 
-
     //*******Test external start Mavlink
 
  //   unsigned char tx_buffer[]={"Hallo Michael"};

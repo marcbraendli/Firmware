@@ -115,7 +115,7 @@ int	TobyDevice::poll(struct pollfd *fds, bool setup){
     fds1[0].events = POLLIN;
 
 
-    int poll_return = px4_poll(fds1,1,500);
+    int poll_return = px4_poll(fds1,1,0);
     if(poll_return >0){
         //notify the caller
         /*

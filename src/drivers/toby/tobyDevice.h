@@ -10,8 +10,7 @@
 #include <drivers/device/device_nuttx.h>
 #include <termios.h>
 
-
-
+#include <fcntl.h>
 
 
 

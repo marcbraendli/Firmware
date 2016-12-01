@@ -106,6 +106,7 @@ Toby::Toby() :
     readBuffer = new BoundedBuffer();
     done = true;
     pthread_cond_init(&pollEventSignal,NULL);
+    pthread_mutex_init(&pollingMutex,NULL);
 
 
 
@@ -483,7 +484,7 @@ int Toby::open(device::file_t *filp){
 
 
    // writerThread = new pthread_t;
-    pthread_create(writerThread, NULL, writeWork, (void*)&workerParameters);
+  //  pthread_create(writerThread, NULL, writeWork, (void*)&workerParameters);
 
 
     readerParameters.myDevice = myTobyDevice;
@@ -503,8 +504,10 @@ int Toby::open(device::file_t *filp){
     pthread_create(atCommanderThread, NULL, atCommander::atCommanderStart, (void*)&atCommanderParameters);
 
 
+    //**************************Initialize the polling-Thread******************************
     pollingThreadParameters.myDevice = myTobyDevice;
     pollingThread = new pthread_t;
+  //  pthread_create(pollingThread, NULL, pollingThreadStart, (void*)&pollingThreadParameters);
 
 
     PX4_INFO("Toby:: exit open()");
@@ -622,7 +625,35 @@ void* Toby::readWork(void *arg){
 }
 
 
+void *Toby::pollingThreadStart(void *arg)
+{
 
+    myStruct *arguments = static_cast<myStruct*>(arg);
+    TobyDevice* myDevice = arguments->myDevice;
+    int poll_return;
+    while(1){
+        pthread_mutex_lock(&pollingMutex);
+
+        poll_return = myDevice->poll(NULL,true);
+        if(poll_return > 0){
+            PX4_INFO("polling Thread : poll was successfull");
+     //       pthread_cond_signal(&pollEventSignal);
+
+        }
+        else{
+            PX4_INFO("polling Thread : no polling result");
+
+        }
+       pthread_mutex_unlock(&pollingMutex);
+        usleep(100);
+
+    }
+
+
+
+
+    return NULL;
+}
 
 
 //****************************Helperfunctions, may going into a separate header File********************************
