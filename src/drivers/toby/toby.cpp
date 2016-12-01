@@ -321,7 +321,6 @@ int	Toby::poll(device::file_t *filp, struct pollfd *fds, bool setup){
 
    // int poll_return = 0;
    // int poll_return = myTobyDevice->poll(fds,setup);
-    PX4_INFO("poll() is called");
 
 
 
@@ -336,7 +335,6 @@ int	Toby::poll(device::file_t *filp, struct pollfd *fds, bool setup){
     }
 
     else{
-        PX4_INFO("Toby : poll() return 0, no data avaiable");
         return 0;
     }
 

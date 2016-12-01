@@ -24,7 +24,7 @@ public:
     void process(Event e);
 
     static void *atCommanderStart(void *arg);
-
+    void initTobyModul();
 
 
 private:
@@ -43,6 +43,8 @@ private:
     TobyDevice* myDevice;
 
     char* temporaryBuffer; // delete later, just for step-by-step test's
+
+
 
 };
 

@@ -93,9 +93,10 @@ int uart_app_main(int argc, char *argv[])
     int received =0;
 
 
-#define NUMBER_OF_AT_COMMANDS 17
+#define NUMBER_OF_AT_COMMANDS 18
 
     const char *at_command_send[NUMBER_OF_AT_COMMANDS]={"ATE0\r",
+                                                        "AT+IPR =57600\r",
                                                         "AT+CMEE=2\r",
                                                         "AT+CGMR\r",
                                                         "ATI9\r",
@@ -111,7 +112,8 @@ int uart_app_main(int argc, char *argv[])
                                                         "ATI9\r",
                                                         "at+upsd=0,100,3\r",
                                                         "at+upsda=0,3\r",
-                                                        "at+uping=\"www.google.ch\"\r"
+                                                        "at+uping=\"www.google.ch\"\r",
+
                                                        };
 
     //int at_command_send_size[]={5,8,8,5,8,9,15,15,16,13};
@@ -122,7 +124,7 @@ int uart_app_main(int argc, char *argv[])
     int i =0;
     int lenght =0;
     State state =Send;
-    while(i<NUMBER_OF_AT_COMMANDS+10)
+    while(i<NUMBER_OF_AT_COMMANDS)
     {
 
         switch(state)
