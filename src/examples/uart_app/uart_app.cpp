@@ -19,9 +19,12 @@
 
 #include <stdlib.h> //für fopen()!
 
+
+
 //for readATfromSD
 #define MAX_INPUT_LENGTH	20
-#define MAX_LINE_NUMBER		10
+#define MAX_INPUT_LENGTH	20
+#define MAX_AT_COMMANDS		20
 #define PATH                "/fs/microsd/toby/at-inits.txt"
 
 typedef enum State
@@ -33,10 +36,11 @@ typedef enum State
 
 extern "C" __EXPORT  int uart_app_main(int argc, char *argv[]);
 
-void readATfromSD();
-int at_command_lenght(const char* at_command);
+void readATfromSD(char* atcommandbuffer);
 
-unsigned char at_buffer[2][MAX_LINE_NUMBER][MAX_INPUT_LENGTH]={};
+int at_command_lenght(char* at_command[]);//ARRAY VON POINTERN Übergeben
+
+//unsigned char at_buffer[2][MAX_LINE_NUMBER][MAX_INPUT_LENGTH]={};
 
 int uart_app_main(int argc, char *argv[])
 {
@@ -78,19 +82,20 @@ int uart_app_main(int argc, char *argv[])
         PX4_WARN("Wrong Options");
     }
 
+
     px4_pollfd_struct_t fds;
     fds.fd = uart0_filestream;
     fds.events = (POLLIN | POLLRDNORM);
-
     char rx_buffer[100]="";
     char output[100]="";
     char* string_end ='\0';
     int received =0;
+    int i =0;
+    int lenght =0;
+    State state =Send;
 
-
-#define NUMBER_OF_AT_COMMANDS 17
-
-    const char *at_command_send[NUMBER_OF_AT_COMMANDS]={"ATE0\r",
+    //#define NUMBER_OF_AT_COMMANDS 17
+    /*const char *at_command_send[NUMBER_OF_AT_COMMANDS]={"ATE0\r",
                                                         "AT+CMEE=2\r",
                                                         "AT+CGMR\r",
                                                         "ATI9\r",
@@ -107,33 +112,23 @@ int uart_app_main(int argc, char *argv[])
                                                         "at+upsd=0,100,3\r",
                                                         "at+upsda=0,3\r",
                                                         "at+uping=\"www.google.ch\"\r"
-                                                       };
+                                                       };*/
 
-    //int at_command_send_size[]={5,8,8,5,8,9,15,15,16,13};
+    char* at_command_send[MAX_AT_COMMANDS];
 
-    //const char *at_command_send[5]={"ATE0\r","AT+CPIN=\"4465\"\r","AT+UPSD=0,100,4\r","AT+UPSDA=0,3\r","AT+UPING=\"www.google.com\"\r"};
-    //int at_command_send_size[5]={5,15,16,13,26};
+    int numberOfAT = readATfromSD(at_command_send[0]);
 
-    int i =0;
-    int lenght =0;
-    State state =Send;
-    while(i<NUMBER_OF_AT_COMMANDS+10)
+    while(i<numberOfAT)
     {
 
         switch(state)
         {
         case Send:
         {
-            lenght= at_command_lenght(at_command_send[i]);
-            //PX4_INFO("Sendsize: %i vs. length %i", at_command_send_size[i],lenght);
+            lenght= at_command_lenght(atcommandbuffer[i]);
 
-            //PX4_INFO("Send: %.*s",at_command_send_size[i]-1,at_command_send[i]);
-            //int count = write(uart0_filestream, at_command_send[i], at_command_send_size[i]);
-
-             PX4_INFO("Send: %.*s",lenght-1,at_command_send[i]);
+            PX4_INFO("Send: %.*s",lenght-1,at_command_send[i]);
             int count = write(uart0_filestream, at_command_send[i], lenght);
-
-
 
             if (count < 0)
             {
@@ -183,7 +178,7 @@ int uart_app_main(int argc, char *argv[])
             strncpy(output, string_end,100);
             //PX4_INFO("Output check: %s", output);
             if(i > NUMBER_OF_AT_COMMANDS){
-               state=Receive;
+                state=Receive;
             }
             else{
                 state = Send;
@@ -202,78 +197,69 @@ int uart_app_main(int argc, char *argv[])
     return 0;
 }
 
-/*void readATfromSD()
-{
-    FILE *f = fopen(PATH, "r");
-    int pos = 	0;
-    int line=	0;
-    int buf=	0;
-    int c;         //Charakter Zwischenspeicher muss negativ werden können
-                    //return von fgetc() ist -1 für das ende der Zeile
-    unsigned char buffer[2][MAX_LINE_NUMBER][MAX_INPUT_LENGTH]={};
 
-    if(f) {
+//gibt die Anzahl AT Commands zurück MAX ist definiert !!!
+int readATfromSD(char *atcommandbuffer)
+{
+    FILE*       sd_stream               = fopen(PATH, "r");
+    int 	atcommandbufferstand    = 0;
+    int 	inputbufferstand        = 0;
+    int 	c                       =-1;
+    char 	string_end              ='\0';
+    char 	inputbuffer[MAX_INPUT_LENGTH]="";
+
+    if(sd_stream) {
         PX4_INFO("SD-Karte offen");
         //std::cout<<"SD-Karte offen"<<std::endl;
         do { // read all lines in file
-            pos = 0;
             do{ // read one line until EOF
-                c = fgetc(f);
-                if(c ==':')
-                {
-                    //std::cout<<"Bufferchange to 1 because of :"<<std::endl;
-                    buf=1;
-                }else if(c != EOF){
-                    //std::cout<<"c="<<c<<std::endl;
-                    buffer[buf][line][pos] = (char)c;
-                    pos++;
-                }else{}
+                c = fgetc(sd_stream);
+                /*if(c ==':') //Bufferwechsel zwischen Request und Answer
+                                {
+                                        //std::cout<<"Bufferchange to 1 because of :"<<std::endl;
+                                        buf=1;
+                                }else*/
+                if(c != EOF){
+                    //(EOF = End of File mit -1 im System definiert)
+                    inputbuffer[inputbufferstand]=(char)c;
+                    inputbufferstand++;
+                }
             }while(c != EOF && c != '\n');
-            line++;
-            //std::cout<<"Bufferchange back to 0"<<std::endl;
-            buf=0;
+
+            inputbuffer[inputbufferstand++]='\r';
+            inputbuffer[inputbufferstand]=string_end; //wirklich Notwendig ?
+
+            atcommandbuffer[atcommandbufferstand] =(char*) malloc (inputbufferstand);
+            strcpy(atcommandbuffer[atcommandbufferstand],inputbuffer);
+
+            inputbufferstand=0;
+            atcommandbufferstand++;
         } while(c != EOF);
     }else{
         PX4_INFO("SD-Karte NICHT offen");
         //std::cout<<"SD-Karte NICHT offen"<<std::endl;
     }
-    fclose(f);
+    fclose(sd_stream);
 
-    //std::cout<<"myfile  beinhaltet "<<line-1<<" Zeilen"<<std::endl;
-    PX4_INFO("myfile  beinhaltet %d Zeilen", (line-1));
-    //std::cout<<"Anfragen:"<<std::endl;
-    PX4_INFO("Anfragen");
-
-    for(int i=0; i <line ; i++)
+    PX4_INFO("%s beinhaltet %d Zeilen",PATH,(atcommandbufferstand-1));
+    //std::cout<< PATH << " beinhaltet "<<atcommandbufferstand-1<<" Zeilen"<<std::endl;
+    for(int i=0 ; i < atcommandbufferstand-1 ; i++)
     {
-        for(int j=0; j < MAX_INPUT_LENGTH; j++)
-        {
-            //std::cout << buffer[0][i][j];
-            PX4_INFO("%c",buffer[0][i][j]);
-        }
-        //std::cout<<std::endl;
+        PX4_INFO("Inhalt %d ",i ,atcommandbuffer[i]);
+        //std::cout<<"Inhalt "<<i<<":"<<atcommandbuffer[i];
     }
-    //std::cout<<"Antworten:"<<std::endl;
+    return atcommandbufferstand-1;
+}
 
-    for(int i=0; i <line ; i++)
-    {
-        for(int j=0; j < MAX_INPUT_LENGTH; j++)
-        {
-            //std::cout << buffer[1][i][j];
-            PX4_INFO("%c",buffer[1][i][j]);
-        }
-    }
-}*/
-
-int at_command_lenght(const char* at_command)
+int at_command_lenght(char *at_command[])
 {
-   int k=0;
-   while(at_command[k] != '\r')
+    int k=0;
+    while(at_command[k] != '\n')
     {
         k++;
     }
 
-    return k+1;
+    return k;
 }
 
 
