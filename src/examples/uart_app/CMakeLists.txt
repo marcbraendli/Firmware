@@ -34,7 +34,7 @@
 px4_add_module(
         MODULE examples__uart_app
         MAIN uart_app
-        STACK_MAIN 2000
+        STACK_MAIN 4000
         SRCS
                 uart_app.cpp
         DEPENDS
