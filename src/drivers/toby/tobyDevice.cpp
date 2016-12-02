@@ -36,7 +36,7 @@ TobyDevice::TobyDevice()
 
 
     uart0_filestream = uart_open(&options);
-    PX4_INFO("opened uart with %d",&uart0_filestream);
+    PX4_INFO("opened uart with %d",uart0_filestream);
 
 
 

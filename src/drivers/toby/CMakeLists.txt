@@ -44,6 +44,8 @@ px4_add_module(
 		boundedBuffer.h
 		atCommander.cpp
 		atCommander.h
+                pingPongBuffer.h
+                pingPongBuffer.cpp
 
         DEPENDS
                 platforms__common

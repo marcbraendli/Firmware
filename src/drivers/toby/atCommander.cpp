@@ -1,6 +1,7 @@
 #include "atCommander.h"
 #include "toby.h"
 
+
 #include "px4_log.h"
 
 extern pthread_cond_t Toby::pollEventSignal;  // has to be public, otherwise we cant use it from at commander
@@ -16,6 +17,8 @@ atCommander::atCommander(TobyDevice* device, BoundedBuffer* read, BoundedBuffer*
     currentState = StopState;       //First test with ready state
 
     temporaryBuffer = (char*)malloc(62*sizeof(char));
+    commandBuffer = (char*)malloc(15*sizeof(char));
+    atCommandSend = "AT+USOWR=0,62\r";
 
 }
 atCommander::~atCommander(){
@@ -25,65 +28,110 @@ atCommander::~atCommander(){
 
 void atCommander::process(Event e){
 
-    switch (currentState){
+    switch(currentState){
 
-    case StopState:
-        PX4_INFO("in StopState");
-        if(e == evInitOk){
-            initTobyModul();
-        }
-        break;
-    case InitState:
-        PX4_INFO("in InitState");
-        break;
 
-    case WaitState:
-        PX4_INFO("in WaitState");
+    case StopState :
 
-        if(e == evWriteDataAvaiable){
-            PX4_INFO("do some writing");
+        if(e == evStart){
+            bool successful = initTobyModul();
+            if(successful){
+                PX4_INFO("Beginn with transfer, using command %s ",atCommandSend);
+                currentState = WaitState;
+                PX4_INFO("switch state to WaitState");
+            }
+            else{
+                currentState = ErrorState;
+                PX4_INFO("switch state to ErrorState");
 
-            int sizeofdata = writeBuffer->getString(temporaryBuffer,62);
-            myDevice->write(temporaryBuffer,sizeofdata);
-
-            currentState = WaitState;
+            }
         }
 
+        break;
 
-        if(e == evReadDataAvaiable){
-            PX4_INFO("do some reading");
+    case ErrorState :
+        // error handling, maybe reinitialize toby modul?
+        break;
 
-              int u =  myDevice->read(temporaryBuffer,60);
-               readBuffer->putString(temporaryBuffer,u);
-                if(u>0){
-                    PX4_INFO("atCommander : successfull reading");
+
+    case WaitState :
+
+        if(e== evReadDataAvaiable){
+            //first check the data avaiable
+            myDevice->read(temporaryBuffer,62);
+            //parse, we need to know if we can read data or if there is something else
+            int dataToRead = 0;
+           // int dataToRead = parse(temporaryBuffer);
+
+            if(dataToRead > 0){
+                // we want to read all data from toby module
+                myDevice->write(temporaryBuffer,12);    // accept data's
+
+                // fill buffer with data from toby
+                dataToRead = myDevice->read(temporaryBuffer,62);
 
             }
 
+            else if(dataToRead < 0){
+                // error handling, parser said that there must be an error message
 
-            usleep(200);
-            currentState = WaitState;
+                currentState = ErrorState;
+            }
+
+            else{
+                // we do nothing
+            }
+                readBuffer->putString(temporaryBuffer, dataToRead);
+
         }
 
 
 
+        if(e == evWriteDataAvaiable){
+            PX4_INFO("evWriteDataAvaiable : ");
+
+            int write_return = (writeBuffer->getString(temporaryBuffer,62));
+            PX4_INFO("writeBuffer has to write :  %d",write_return);
+            sleep(1);
+
+            //send "AT+USOWR=0,"
+            myDevice->write(atCommandSend,14);
+            //PX4_INFO("AT COMMAND: write %d of 14 commands",write_return);
+            char numberToWrite[10] = "";
+            //parse number to write from int to string
+
+
+
+            itoa(write_return,numberToWrite,10);
+
+
+
+            // write an enter
+            //const char* stringEnter = " \r";
+            // myDevice->write(stringEnter,2);
+
+
+            PX4_INFO("Number to write : %s",numberToWrite);
+
+
+            write_return = myDevice->write(temporaryBuffer,62);
+            PX4_INFO("write number of character to toby device : %i",write_return);
+            PX4_INFO("write number of character to toby device : %s",numberToWrite);
+
+            //flush the count string
+
+
+
+            char* stringEnd = '\0';
+            strncpy(numberToWrite,stringEnd,10);
+
+
+        }
 
 
         break;
 
-    case ReadState:
-        PX4_INFO("in ReadState");
-
-
-
-        break;
-
-    case WriteState:
-        PX4_INFO("in WriteState");
-        break;
-
-
-     default:
+    default :
 
         break;
 
@@ -103,6 +151,7 @@ void atCommander::process(Event e){
 void* atCommander::atCommanderStart(void* arg){
 
     //eventuell in externen Header, saubere Trennung
+    PX4_INFO("AT-Commander says hello");
 
     myStruct *arguments = static_cast<myStruct*>(arg);
 
@@ -110,40 +159,37 @@ void* atCommander::atCommanderStart(void* arg){
     BoundedBuffer *atReadBuffer = arguments->readBuffer;
     TobyDevice *atTobyDevice = arguments->myDevice;
 
+    usleep(500);
 
     atCommander *atCommanderFSM = new atCommander(atTobyDevice,atReadBuffer,atWriteBuffer);
-    atCommanderFSM->process(evInitOk);
+    atCommanderFSM->process(evStart);
 
 
     sleep(2);
-    return NULL;
-
+    PX4_INFO("Beginn with transfer");
 
     //unrechable , just for test
     //********************************************************************
     int poll_return = 0;
-    int write_return = 0; // number data to write
-    int read_return = 0;
-    char* temporaryBuffer = (char*)malloc(62*sizeof(char));
+   // int write_return = 0; // number data to write
+   // int read_return = 0;
+   // char* temporaryBuffer = (char*)malloc(62*sizeof(char));
 
 
+    //return NULL;
 
 
 
     while(1){
 
-        poll_return = (atTobyDevice->poll(NULL,true));
-        if(poll_return > 0){
-           read_return =  atTobyDevice->read(temporaryBuffer,62);
-           atReadBuffer->putString(temporaryBuffer,read_return);
+        //poll_return = (atTobyDevice->poll(NULL,true));
 
+        if(poll_return > 0){
+            atCommanderFSM->process(evReadDataAvaiable);
         }
 
-        write_return =  atWriteBuffer->getString(temporaryBuffer,62);
 
-        atTobyDevice->write(temporaryBuffer,write_return);
-
-
+        atCommanderFSM->process(evWriteDataAvaiable);
 
 
     }
@@ -154,7 +200,7 @@ void* atCommander::atCommanderStart(void* arg){
 }
 
 
-void atCommander::initTobyModul(){
+bool atCommander::initTobyModul(){
 
     int poll_return= 0;
     const char* pch = "OK";
@@ -174,40 +220,45 @@ void atCommander::initTobyModul(){
                                                         "ATI9\r",
                                                         "at+upsd=0,100,3\r",
                                                         "at+upsda=0,3\r",                       //dangerous command, may we have to check the activated socket, now we code hard!
-                                                        "at+uping=\"www.google.ch\"\r",
                                                         "at+usocr=6\r",
+                                                        "at+usoco=0,\"178.194.112.125\",5555\r",
 
                                                        };
 
 
 
     int i = 0;
+    char* stringEnd = '\0';
     while(i < 18){
         myDevice->write(at_command_send[i],at_command_lenght2(at_command_send[i]));
         while(poll_return < 1){
+            //some stupid polling;
             poll_return = myDevice->poll(NULL,true);
+            usleep(100);
         }
         sleep(1);
         poll_return = myDevice->read(temporaryBuffer,62);
-        if(strstr(temporaryBuffer, pch) != 0){
+        if(strstr(temporaryBuffer, pch) != NULL){
             PX4_INFO("Command Successfull : %s",at_command_send[i]);
+            PX4_INFO("answer :  : %s",temporaryBuffer);
+
             ++i; //sucessfull, otherwise, retry
         }
         else{
             PX4_INFO("Command failed : %s", at_command_send[i]);
+            --i; //we try the last command befor, because if we can't connect to static ip, it closes the socket automatically and we need to reopen
         }
+
+
+        //dirty way to flush the read buffer
+        strncpy(temporaryBuffer,stringEnd,62);
 
 
        poll_return = 0;
     }
     PX4_INFO("sucessfull init");
 
-
-
-
-
-
-
+    return true;
 
 }
 
