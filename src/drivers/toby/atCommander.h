@@ -42,6 +42,8 @@ private:
     BoundedBuffer* writeBuffer;
     TobyDevice* myDevice;
 
+
+    char* writeDataCommand;
     char* temporaryBuffer; // delete later, just for step-by-step test's
 
 

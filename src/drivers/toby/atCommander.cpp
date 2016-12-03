@@ -17,6 +17,8 @@ atCommander::atCommander(TobyDevice* device, BoundedBuffer* read, BoundedBuffer*
 
     temporaryBuffer = (char*)malloc(62*sizeof(char));
 
+    writeDataCommand[] = {"USOCO=0,"};  // write command, Command = Socketnr, number of bytes to write;
+
 }
 atCommander::~atCommander(){
 
@@ -32,7 +34,9 @@ void atCommander::process(Event e){
         if(e == evInitOk){
             initTobyModul();
         }
+        currentState = WaitState;
         break;
+
     case InitState:
         PX4_INFO("in InitState");
         break;
@@ -42,11 +46,12 @@ void atCommander::process(Event e){
 
         if(e == evWriteDataAvaiable){
             PX4_INFO("do some writing");
-
             int sizeofdata = writeBuffer->getString(temporaryBuffer,62);
-            myDevice->write(temporaryBuffer,sizeofdata);
+            myDevice->write("USOCO=0,",7);
+            myDevice->write(sizeofdata,7); // sizeofdata in string convert?!
 
-            currentState = WaitState;
+
+            currentState = waitForResponse;
         }
 
 
@@ -116,11 +121,8 @@ void* atCommander::atCommanderStart(void* arg){
 
 
     sleep(2);
-    return NULL;
 
 
-    //unrechable , just for test
-    //********************************************************************
     int poll_return = 0;
     int write_return = 0; // number data to write
     int read_return = 0;
@@ -134,8 +136,10 @@ void* atCommander::atCommanderStart(void* arg){
 
         poll_return = (atTobyDevice->poll(NULL,true));
         if(poll_return > 0){
-           read_return =  atTobyDevice->read(temporaryBuffer,62);
-           atReadBuffer->putString(temporaryBuffer,read_return);
+            atCommanderFSM->Event(evReadDataAvaiable);
+            //*******************************************
+            //read_return =  atTobyDevice->read(temporaryBuffer,62);
+            //atReadBuffer->putString(temporaryBuffer,read_return);
 
         }
 
