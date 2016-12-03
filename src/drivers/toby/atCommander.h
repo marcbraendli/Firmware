@@ -17,14 +17,15 @@ public:
         evReadDataAvaiable,
         evWriteDataAvaiable,
         evInitOk,
-        evInitFail
+        evInitFail,
+        evStart
 
     };
 
     void process(Event e);
 
     static void *atCommanderStart(void *arg);
-    void initTobyModul();
+    bool initTobyModul();
 
 
 private:
@@ -34,7 +35,8 @@ private:
         InitState,
         WaitState,
         ReadState,
-        WriteState
+        WriteState,
+        ErrorState
     };
 
     State currentState;
@@ -45,7 +47,9 @@ private:
 
     char* writeDataCommand;
     char* temporaryBuffer; // delete later, just for step-by-step test's
+    char* commandBuffer; // delete later, just for step-by-step test's
 
+    const char* atCommandSend ;
 
 
 };
