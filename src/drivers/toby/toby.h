@@ -1,3 +1,11 @@
+/**
+* @file     toby.h
+*
+* @brief    Device Class für das Toby Modul
+* @author   Michael Lehmann
+* @date     10.10.2016
+*/
+
 #include <drivers/device/device.h>
 #include <px4_config.h>
 
@@ -11,22 +19,24 @@
 
 struct myStruct //TODO rename
 {
-  TobyDevice* myDevice;
-  BoundedBuffer* writeBuffer;  //TODO rename
-  BoundedBuffer* readBuffer;
+    TobyDevice* myDevice;
+    BoundedBuffer* writeBuffer;  //TODO rename
+    BoundedBuffer* readBuffer;
 };
 
-
-
-
+/**
+* @brief Toby Class, damit das interface im /dev/ Ordner von NuttX erscheint
+*
+* Genaue beschreibung der Klasse hier....
+*
+* @date ?
+*/
 class Toby : device::CDev
-
 {
 public:
     Toby();
     virtual ~Toby();
-
-    virtual int		init();
+    virtual int	init();
 
 
     int open(device::file_t *filp);
@@ -45,6 +55,7 @@ public:
     static pthread_mutex_t pollingMutex;
 
 private:
+
     TobyDevice* myTobyDevice;
 
     struct termios options= {};
@@ -57,8 +68,6 @@ private:
     pthread_t *pollingThread;
 
     myStruct pollingThreadParameters;
-
-
 
     myStruct workerParameters; //TODO rename
     myStruct readerParameters;
