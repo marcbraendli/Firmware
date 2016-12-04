@@ -13,6 +13,8 @@
 #include <termios.h>
 #include "tobyDevice.h"
 #include "boundedBuffer.h"
+#include "pingPongBuffer.h"
+
 
 
 
@@ -22,6 +24,7 @@ struct myStruct //TODO rename
     TobyDevice* myDevice;
     BoundedBuffer* writeBuffer;  //TODO rename
     BoundedBuffer* readBuffer;
+    PingPongBuffer* writePongBuffer;
 };
 
 /**
@@ -76,6 +79,10 @@ private:
 
     BoundedBuffer* writeBuffer;
     BoundedBuffer* readBuffer;
+
+
+    // ein versucht
+    PingPongBuffer* writePongBuffer;
 
 
     // our worker thread function, needs to be static, otherwise pthread can't execute (is C, not C++)

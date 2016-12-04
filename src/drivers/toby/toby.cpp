@@ -54,6 +54,10 @@ Toby::Toby() :
     done = true;
     pthread_cond_init(&pollEventSignal,NULL);
     pthread_mutex_init(&pollingMutex,NULL);
+
+
+
+    writePongBuffer = new PingPongBuffer();
 }
 
 /**
@@ -169,20 +173,13 @@ ssize_t	Toby::read(device::file_t *filp, char *buffer, size_t buflen)
     */
 
     //new function
-    PX4_INFO("Toby::read() is called");
-
-
-
-
-
-
-
+    //PX4_INFO("Toby::read() is called");
 
     //readBuffer->getString()
     //return myTobyDevice->read(buffer,buflen);
     int i = 0;
     i = (readBuffer->getString(buffer,buflen));
-    PX4_INFO("Toby::read() read %d",i);
+   // PX4_INFO("Toby::read() read %d",i);
 
     return i;
 
@@ -219,10 +216,11 @@ ssize_t	Toby::write(device::file_t *filp, const char *buffer, size_t buflen){
   //  PX4_INFO("Toby::write() is called");
 
 
-     writeBuffer->putString(buffer,buflen);
+     //writeBuffer->putString(buffer,buflen);
+     return writePongBuffer->PutData(buffer,buflen);
      //sleep(1);
     // return myTobyDevice->write(buffer,buflen);
-     return buflen;
+    // return buflen;
 
 
 
@@ -283,7 +281,7 @@ int	Toby::poll(device::file_t *filp, struct pollfd *fds, bool setup){
 
 
     if(!readBuffer->empty()){
-        PX4_INFO("Toby : poll() return 1, data avaiable");
+      //  PX4_INFO("Toby : poll() return 1, data avaiable");
         poll_notify(POLLIN);
         poll_notify_one(fds, POLLIN);
         return  1;
@@ -435,16 +433,15 @@ int Toby::open(device::file_t *filp){
     workerParameters.readBuffer = this->readBuffer;
 
     //define the worker with the declareted parameters
-
-
-   // writerThread = new pthread_t;
-  //  pthread_create(writerThread, NULL, writeWork, (void*)&workerParameters);
+    workerParameters.writePongBuffer = writePongBuffer;
+    //writerThread = new pthread_t;
+     //pthread_create(writerThread, NULL, writeWork, (void*)&workerParameters);
 
 
     readerParameters.myDevice = myTobyDevice;
     readerParameters.readBuffer = this->readBuffer;
-    readerThread = new pthread_t;
-   // pthread_create(readerThread, NULL, readWork, (void*)&readerParameters);
+    //readerThread = new pthread_t;
+    //pthread_create(readerThread, NULL, readWork, (void*)&readerParameters);
 
 
 
@@ -454,13 +451,14 @@ int Toby::open(device::file_t *filp){
     atCommanderParameters.myDevice = myTobyDevice;
     atCommanderParameters.readBuffer = readBuffer;
     atCommanderParameters.writeBuffer= writeBuffer;
+    atCommanderParameters.writePongBuffer= writePongBuffer;
+
     atCommanderThread = new pthread_t;
     pthread_create(atCommanderThread, NULL, atCommander::atCommanderStart, (void*)&atCommanderParameters);
 
 
     //**************************Initialize the polling-Thread******************************
-    pollingThreadParameters.myDevice = myTobyDevice;
-    pollingThread = new pthread_t;
+
   //  pthread_create(pollingThread, NULL, pollingThreadStart, (void*)&pollingThreadParameters);
 
 
@@ -484,14 +482,16 @@ void* Toby::writeWork(void *arg){
     PX4_INFO("writeWork Thread started");
     //extract arguments :
     myStruct *arguments = static_cast<myStruct*>(arg);
-    BoundedBuffer* writeBuffer = arguments->writeBuffer;
+    //BoundedBuffer* writeBuffer = arguments->writeBuffer;
     TobyDevice* myDevice = arguments->myDevice;
+    PingPongBuffer* writePongBuffer = arguments->writePongBuffer;
+
 
 
     //we need some space, only once needed ... the size of the space is not fix yet,
     //TODO : FIX THE SPACE-PROBLEM, how much space should we give? Or maybe, it is saved directly in bufferer (more elegant)
     char* data = (char*)malloc(62*sizeof(char));
-
+    char* readBuffer = NULL;
 
     // For debugging
     if(data == NULL){
@@ -507,16 +507,31 @@ void* Toby::writeWork(void *arg){
     while(1){
 
         //get data from buffer
-   //     int size = writeBuffer->getItem(data);
-        size = writeBuffer->getString(data,62);
-       // PX4_INFO("Thread got data: %s", data);
+        //variante 1) : size = writeBuffer->getString(data,62);
+
+        if(writePongBuffer->DataAvaiable()){
+            readBuffer = (writePongBuffer->getActualReadBuffer());
+           int write_return =  myDevice->write(readBuffer,PingPongBuffer::AbsolutBufferLength);
+           if(write_return != PingPongBuffer::AbsolutBufferLength){
+               PX4_INFO("ERROR, only write %d instead of 124",write_return);
+
+           }
+            writePongBuffer->GetDataSuccessfull();
+
+        }
+
+        else{
+            usleep(50);
+        }
+
         //write data to hardware
         if(size > 62){
             PX4_INFO("ERROR Thread has to write size: %d",size);
         }
-         // PX4_INFO("write worker is working");
 
-          myDevice->write(data,size);
+          // write data to device
+          // variante 1) : myDevice->write(data,size)
+
 
     }
 
@@ -562,7 +577,7 @@ void* Toby::readWork(void *arg){
 
         }
         else{
-            PX4_INFO("readWorker : poll got 0");
+          //  PX4_INFO("readWorker : poll got 0");
 
         }
         if(buffer == NULL){

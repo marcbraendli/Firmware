@@ -43,15 +43,17 @@ int custom_app_main(int argc, char *argv[])
     orb_set_interval(sensor_sub_fd, 200);
 
 
-    px4_pollfd_struct_t fds=
+    px4_pollfd_struct_t fds[]=  // bracket
     {
+
         {
             .fd = sensor_sub_fd,
             .events = POLLIN,
 
         },
-
     };
+
+
 
 
     int error_counter = 0;
@@ -76,7 +78,7 @@ int custom_app_main(int argc, char *argv[])
 
         } else {
 
-            if (fds.revents & POLLIN) {
+            if (fds[0].revents & POLLIN) {
                 // obtained data for the first file descriptor
                 struct sensor_custom_s raw;
                 // copy sensors raw data into local buffer

@@ -2,6 +2,8 @@
 #define atCommander_h
 
 #include "boundedBuffer.h"
+#include "pingPongBuffer.h"
+
 #include "tobyDevice.h"
 
 
@@ -10,7 +12,7 @@ class atCommander
 
 {
 public:
-    atCommander(TobyDevice* device, BoundedBuffer* read, BoundedBuffer* write);
+    atCommander(TobyDevice* device, BoundedBuffer* read, BoundedBuffer* write, PingPongBuffer* write2);
     virtual ~atCommander();
 
     enum Event{
@@ -42,6 +44,8 @@ private:
     State currentState;
     BoundedBuffer* readBuffer;
     BoundedBuffer* writeBuffer;
+    PingPongBuffer* pingPongWriteBuffer;
+
     TobyDevice* myDevice;
 
 
@@ -50,6 +54,8 @@ private:
     char* commandBuffer; // delete later, just for step-by-step test's
 
     const char* atCommandSend ;
+
+    const char* atCommandPingPongBufferSend ;
 
 
 };
