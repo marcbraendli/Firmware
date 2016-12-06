@@ -372,3 +372,27 @@ int atCommander::readATfromSD(char **atcommandbuffer)
 
     return atcommandbufferstand;
 }
+
+
+/**
+ * @brief compares two char array
+ *
+ * Compares two arrays until the first one is terminatet with '\0'
+ *
+ *
+ * @param first char-array pointer (defines lenght)
+ * @param second char-array pointer
+ * @return Number of identical values
+ */
+
+int atCommander::string_compare(const char* pointer1,const char* pointer2)
+{
+    int i=0;
+    do{
+        i++;
+    }while((pointer1[i]!='\0')||(pointer2[i]!='\0') )
+
+
+    return i;
+}
+

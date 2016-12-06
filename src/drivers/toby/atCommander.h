@@ -35,6 +35,7 @@ private:
     void printAtCommands(char **atcommandbuffer, int atcommandbufferstand);
     int at_command_lenght(const char* at_command);
     int readATfromSD(char **atcommandbuffer);
+    int string_compare(const char* pointer1,const char* pointer2);
 
     enum State {
         StopState,
