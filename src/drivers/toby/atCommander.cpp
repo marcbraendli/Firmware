@@ -1,21 +1,25 @@
+#include <fcntl.h>
+#include <termios.h>
+#include <stdio.h>
+#include <poll.h>
+#include <string.h>
+
+
 #include "atCommander.h"
 #include "toby.h"
-
-
 #include "px4_log.h"
 
 //for readATfromSD
-#define MAX_INPUT_LENGTH	20
-#define MAX_INPUT_LENGTH	20
-#define MAX_AT_COMMANDS		20
-#define MAX_CHAR_PER_AT_COMMANDS 20
-#define PATH                "/fs/microsd/toby/at-inits.txt"
-
+#define PATH       "/fs/microsd/toby/at-inits.txt"
+enum{
+    MAX_AT_COMMANDS = 20,
+    MAX_CHAR_PER_AT_COMMANDS =40
+};
 
 
 extern pthread_cond_t Toby::pollEventSignal;  // has to be public, otherwise we cant use it from at commander
 extern pthread_mutex_t Toby::pollingMutex;
-int at_command_lenght2(const char* at_command);
+
 
 atCommander::atCommander(TobyDevice* device, BoundedBuffer* read, BoundedBuffer* write, PingPongBuffer* write2){
 
@@ -208,7 +212,7 @@ bool atCommander::initTobyModul(){
 
     int poll_return= 0;
     const char* pch = "OK";
-    const char *at_command_send[18]={"ATE0\r",
+    /*const char *at_command_send[18]={"ATE0\r",
                                                         "AT+IPR=57600\r",
                                                         "AT+CMEE=2\r",
                                                         "AT+CGMR\r",
@@ -227,21 +231,21 @@ bool atCommander::initTobyModul(){
                                                         "at+usocr=6\r",
                                                         "at+usoco=0,\"178.196.15.59\",44444\r",
 
-                                                       };
+                                                       };*/
 
 
-    /*    für read from SD
-    char   at_command_send[MAX_AT_COMMANDS][MAX_CHAR_PER_AT_COMMANDS];
+    /*    für read from SD*/
+    char   at_command_send_array[MAX_AT_COMMANDS][MAX_CHAR_PER_AT_COMMANDS];
 
     //Anpassung da malloc nicht funktioniert,
     //damit Funktionen weiterverwendet werden können
-    char* at_command_sendp[MAX_AT_COMMANDS];
+    char* at_command_send[MAX_AT_COMMANDS];
     for(int i=0; i < MAX_AT_COMMANDS; ++i)
-        at_command_sendp[i] = &at_command_send[i][0];
+        at_command_send[i] = &at_command_send_array[i][0];
 
-    int numberOfAT=readATfromSD(at_command_sendp);
+    int numberOfAT=readATfromSD(at_command_send);
     PX4_INFO("numberOfAT from return:: %d",numberOfAT);
-    */
+
 
     int i = 0;
     char* stringEnd = '\0';
@@ -325,7 +329,7 @@ int atCommander::readATfromSD(char **atcommandbuffer)
     int 	inputbufferstand        = 0;
     int 	c                       =-1;
     char 	string_end              ='\0';
-    char 	inputbuffer[MAX_INPUT_LENGTH]="";
+    char 	inputbuffer[MAX_CHAR_PER_AT_COMMANDS]="";
 
     if(sd_stream) {
         PX4_INFO("SD-Karte offen");
