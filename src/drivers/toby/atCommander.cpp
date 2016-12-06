@@ -390,7 +390,7 @@ int atCommander::string_compare(const char* pointer1,const char* pointer2)
     int i=0;
     do{
         i++;
-    }while((pointer1[i]!='\0')||(pointer2[i]!='\0') )
+    }while((pointer1[i]!='\0')&& (pointer2[i]==pointer2[i]))
 
 
     return i;
