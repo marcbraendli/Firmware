@@ -20,7 +20,11 @@ atCommander::atCommander(TobyDevice* device, BoundedBuffer* read, BoundedBuffer*
     temporaryBuffer = (char*)malloc(62*sizeof(char));
     commandBuffer = (char*)malloc(15*sizeof(char));
     atCommandSend = "AT+USOWR=0,62\r";
-    atCommandPingPongBufferSend = "AT+USOWR=0,128\r"; // the value 0,XX depends on the PingPongBuffer::AbsolutBufferLength!!!
+    atCommandPingPongBufferSend = "AT+USOWR=0,64\r"; // the value 0,XX depends on the PingPongBuffer::AbsolutBufferLength!!!
+    atEnterCommand = "\r";
+
+
+
 
 }
 atCommander::~atCommander(){
@@ -60,29 +64,7 @@ void atCommander::process(Event e){
 
     case WaitState :
     //this don't work yet -----------------------------------------------------------------
-        if(e== evReadDataAvaiable){
-            //first check the data avaiable
-            myDevice->read(temporaryBuffer,62);
-            //parse, we need to know if we can read data or if there is something else
-            int dataToRead = 0;
-           // int dataToRead = parse(temporaryBuffer);
 
-            if(dataToRead > 0){
-                // we want to read all data from toby module
-                myDevice->write(temporaryBuffer,12);    // accept data's
-
-                // fill buffer with data from toby
-                dataToRead = myDevice->read(temporaryBuffer,62);
-            }
-            else if(dataToRead < 0){
-                // error handling, parser said that there must be an error message
-                currentState = ErrorState;
-            }
-            else{
-                // we do nothing
-            }
-                readBuffer->putString(temporaryBuffer, dataToRead);
-        }
        //-------------------------------------------------------------------------------------
 
         if(e == evWriteDataAvaiable){
@@ -115,16 +97,19 @@ void atCommander::process(Event e){
             */
 
             // new function********************************************
-
+           PX4_INFO("StateMachine: evWriteDataAavaiable : send data");
            char* sendDataPointer = NULL;
            sendDataPointer =  pingPongWriteBuffer->getActualReadBuffer();
-           myDevice->write(atCommandPingPongBufferSend,15);
-           int write_return = myDevice->write(sendDataPointer,128); //the number depends on the buffer deepness!!!!
-           if(write_return != 128){
+           myDevice->write(atCommandPingPongBufferSend,14);
+           usleep(50);
+           int write_return = myDevice->write(sendDataPointer,64); //the number depends on the buffer deepness!!!!
+           if(write_return != 64){
                PX4_INFO("Error writing Data to UART");
            }
+           write_return = myDevice->write(atEnterCommand,1); //the number depends on the buffer deepness!!!!
+
            pingPongWriteBuffer->GetDataSuccessfull(); // message that we can free the buffer
-           sleep(2); //Test zwecke tracking an konsole da toby l210 noch nicht ufnktoniert
+           usleep(50); //Test zwecke tracking an konsole da toby l210 noch nicht ufnktoniert
 
         }
 
@@ -194,10 +179,11 @@ void* atCommander::atCommanderStart(void* arg){
 
         // Nur Senden, wir testen einzig ob wir daten empfangen
         if(pingPongWriteBuffer->DataAvaiable()){
+            PX4_INFO("process put evWriteDataAvaiable");
             atCommanderFSM->process(evWriteDataAvaiable);
         }
         else{
-            usleep(50);
+            usleep(10);
         }
 
 
@@ -228,7 +214,7 @@ bool atCommander::initTobyModul(){
                                                         "at+upsd=0,100,3\r",
                                                         "at+upsda=0,3\r",                       //dangerous command, may we have to check the activated socket, now we code hard!
                                                         "at+usocr=6\r",
-                                                        "at+usoco=0,\"178.194.112.125\",5555\r",
+                                                        "at+usoco=0,\"178.196.15.59\",44444\r",
 
                                                        };
 

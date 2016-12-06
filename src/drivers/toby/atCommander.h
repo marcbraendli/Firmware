@@ -54,7 +54,7 @@ private:
     char* commandBuffer; // delete later, just for step-by-step test's
 
     const char* atCommandSend ;
-
+    const char* atEnterCommand;
     const char* atCommandPingPongBufferSend ;
 
 

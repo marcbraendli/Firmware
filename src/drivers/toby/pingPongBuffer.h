@@ -29,7 +29,7 @@ public:
     char* getActualReadBuffer(void);
 
     enum{
-        AbsolutBufferLength = 128,
+        AbsolutBufferLength = 64,
     };
 
 private:
