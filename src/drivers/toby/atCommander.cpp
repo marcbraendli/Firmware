@@ -4,6 +4,15 @@
 
 #include "px4_log.h"
 
+//for readATfromSD
+#define MAX_INPUT_LENGTH	20
+#define MAX_INPUT_LENGTH	20
+#define MAX_AT_COMMANDS		20
+#define MAX_CHAR_PER_AT_COMMANDS 20
+#define PATH                "/fs/microsd/toby/at-inits.txt"
+
+
+
 extern pthread_cond_t Toby::pollEventSignal;  // has to be public, otherwise we cant use it from at commander
 extern pthread_mutex_t Toby::pollingMutex;
 int at_command_lenght2(const char* at_command);
@@ -19,8 +28,10 @@ atCommander::atCommander(TobyDevice* device, BoundedBuffer* read, BoundedBuffer*
 
     temporaryBuffer = (char*)malloc(62*sizeof(char));
     commandBuffer = (char*)malloc(15*sizeof(char));
+
     atCommandSend = "AT+USOWR=0,62\r";
-    atCommandPingPongBufferSend = "AT+USOWR=0,64\r"; // the value 0,XX depends on the PingPongBuffer::AbsolutBufferLength!!!
+
+    atCommandPingPongBufferSend = "AT+USOWR=0,62\r"; // the value 0,XX depends on the PingPongBuffer::AbsolutBufferLength!!!
     atEnterCommand = "\r";
 
 
@@ -106,7 +117,7 @@ void atCommander::process(Event e){
            if(write_return != 64){
                PX4_INFO("Error writing Data to UART");
            }
-           write_return = myDevice->write(atEnterCommand,1); //the number depends on the buffer deepness!!!!
+           //write_return = myDevice->write(atEnterCommand,1); //the number depends on the buffer deepness!!!!
 
            pingPongWriteBuffer->GetDataSuccessfull(); // message that we can free the buffer
            usleep(50); //Test zwecke tracking an konsole da toby l210 noch nicht ufnktoniert
@@ -219,11 +230,23 @@ bool atCommander::initTobyModul(){
                                                        };
 
 
+    /*    für read from SD
+    char   at_command_send[MAX_AT_COMMANDS][MAX_CHAR_PER_AT_COMMANDS];
+
+    //Anpassung da malloc nicht funktioniert,
+    //damit Funktionen weiterverwendet werden können
+    char* at_command_sendp[MAX_AT_COMMANDS];
+    for(int i=0; i < MAX_AT_COMMANDS; ++i)
+        at_command_sendp[i] = &at_command_send[i][0];
+
+    int numberOfAT=readATfromSD(at_command_sendp);
+    PX4_INFO("numberOfAT from return:: %d",numberOfAT);
+    */
 
     int i = 0;
     char* stringEnd = '\0';
     while(i < 18){
-        myDevice->write(at_command_send[i],at_command_lenght2(at_command_send[i]));
+        myDevice->write(at_command_send[i],at_command_lenght(at_command_send[i]));
         while(poll_return < 1){
             //some stupid polling;
             poll_return = myDevice->poll(NULL,true);
@@ -257,8 +280,12 @@ bool atCommander::initTobyModul(){
 
 }
 
-
-int at_command_lenght2(const char* at_command)
+/**
+ * @brief gibt die länge des AT-Commands zurück
+ *
+ * '\r'+1
+ */
+int atCommander::at_command_lenght(const char* at_command)
 {
    int k=0;
    while(at_command[k] != '\r')
@@ -267,4 +294,77 @@ int at_command_lenght2(const char* at_command)
     }
 
     return k+1;
+}
+
+/**
+ * @brief Gibt die AT-Commands als PX4_Info aus
+ *
+ *
+ */
+void atCommander::printAtCommands(char **atcommandbuffer, int atcommandbufferstand)
+{
+    PX4_INFO("%s beinhaltet %d Zeilen",PATH,atcommandbufferstand);
+    for(int j=0 ; j < atcommandbufferstand ; j++)
+    {
+        PX4_INFO("Inhalt %d %s",j ,atcommandbuffer[j]);
+    }
+}
+
+/**
+ * @brief read the AT-Commands from the SD-Card into the char-pointer Array
+ *
+ * #define MAX_AT_COMMANDS beachten !!!
+ *
+ * @return Number of AT-Commands
+ * @param char-array pointer
+ */
+int atCommander::readATfromSD(char **atcommandbuffer)
+{
+    FILE*   sd_stream               = fopen(PATH, "r");
+    int 	atcommandbufferstand    = 0;
+    int 	inputbufferstand        = 0;
+    int 	c                       =-1;
+    char 	string_end              ='\0';
+    char 	inputbuffer[MAX_INPUT_LENGTH]="";
+
+    if(sd_stream) {
+        PX4_INFO("SD-Karte offen");
+        do { // read all lines in file
+            do{ // read one line until EOF
+                c = fgetc(sd_stream);
+                if(c != EOF){
+                    //(EOF = End of File mit -1 im System definiert)
+                    inputbuffer[inputbufferstand]=(char)c;
+                    inputbufferstand++;
+                }
+            }while(c != EOF && c != '\n');
+
+            inputbuffer[inputbufferstand]='\r';
+            inputbufferstand++;
+            inputbuffer[inputbufferstand]=string_end; //wirklich Notwendig ?
+
+            //Speicherplatz konnte nicht mit malloc alloziert werden! Griff auf ungültigen Speicherbereich zu.
+            //atcommandbuffer[atcommandbufferstand] =(char*) malloc(20);
+            assert(atcommandbuffer[atcommandbufferstand]!=0);
+            strcpy(atcommandbuffer[atcommandbufferstand],inputbuffer);
+
+            inputbufferstand=0;
+            atcommandbufferstand++;
+        } while(c != EOF);
+    }else{
+        PX4_INFO("SD-Karte NICHT offen");
+    }
+
+    fclose(sd_stream);
+    PX4_INFO("SD-Karte geschlossen");
+
+    atcommandbufferstand--;
+
+    //For Debbuging
+    //printAtCommands(atcommandbuffer,atcommandbufferstand);
+
+    //PX4_INFO("atcommandbufferstand in readATfromSD fkt: %d",atcommandbufferstand);
+
+
+    return atcommandbufferstand;
 }
