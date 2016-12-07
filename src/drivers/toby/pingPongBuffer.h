@@ -29,7 +29,7 @@ public:
     char* getActualReadBuffer(void);
 
     enum{
-        AbsolutBufferLength = 64,
+        AbsolutBufferLength = 128,
     };
 
 private:
@@ -54,6 +54,8 @@ private:
     //but then we can't compile?
     char* actualWriteBuffer;
     char* volatile actualReadBuffer;
+    pthread_cond_t isFull;
+    pthread_cond_t isEmpty;
 
 };
 

@@ -435,12 +435,12 @@ int Toby::open(device::file_t *filp){
     //define the worker with the declareted parameters
     workerParameters.writePongBuffer = writePongBuffer;
     //writerThread = new pthread_t;
-     //pthread_create(writerThread, NULL, writeWork, (void*)&workerParameters);
+    //pthread_create(writerThread, NULL, writeWork, (void*)&workerParameters);
 
 
     readerParameters.myDevice = myTobyDevice;
     readerParameters.readBuffer = this->readBuffer;
-    //readerThread = new pthread_t;
+   // readerThread = new pthread_t;
     //pthread_create(readerThread, NULL, readWork, (void*)&readerParameters);
 
 
@@ -517,6 +517,7 @@ void* Toby::writeWork(void *arg){
 
            }
             writePongBuffer->GetDataSuccessfull();
+            usleep(100000);
 
         }
 

@@ -20,7 +20,7 @@ atCommander::atCommander(TobyDevice* device, BoundedBuffer* read, BoundedBuffer*
     temporaryBuffer = (char*)malloc(62*sizeof(char));
     commandBuffer = (char*)malloc(15*sizeof(char));
     atCommandSend = "AT+USOWR=0,62\r";
-    atCommandPingPongBufferSend = "AT+USOWR=0,64\r"; // the value 0,XX depends on the PingPongBuffer::AbsolutBufferLength!!!
+    atCommandPingPongBufferSend = "AT+USOWR=0,128\r"; // the value 0,XX depends on the PingPongBuffer::AbsolutBufferLength!!!
     atEnterCommand = "\r";
 
 
@@ -97,19 +97,32 @@ void atCommander::process(Event e){
             */
 
             // new function********************************************
-           PX4_INFO("StateMachine: evWriteDataAavaiable : send data");
+
+
+            /*
+            PX4_INFO("StateMachine: evWriteDataAavaiable : send Test data");
+            const char* testText = "HelloFromDrone";
+            const char* atSendtestText = "AT+USOWR=0,14\r";
+
+            myDevice->write(atSendtestText,14);
+            usleep(20000);
+            myDevice->write(testText,14);
+
+            */
+
+
+           //PX4_INFO("StateMachine: evWriteDataAavaiable : send data");
            char* sendDataPointer = NULL;
            sendDataPointer =  pingPongWriteBuffer->getActualReadBuffer();
-           myDevice->write(atCommandPingPongBufferSend,14);
-           usleep(50);
-           int write_return = myDevice->write(sendDataPointer,64); //the number depends on the buffer deepness!!!!
-           if(write_return != 64){
+           myDevice->write(atCommandPingPongBufferSend,15);
+           usleep(100000);
+           int write_return = myDevice->write(sendDataPointer,128); //the number depends on the buffer deepness!!!!
+           if(write_return != 128){
                PX4_INFO("Error writing Data to UART");
            }
-           write_return = myDevice->write(atEnterCommand,1); //the number depends on the buffer deepness!!!!
 
            pingPongWriteBuffer->GetDataSuccessfull(); // message that we can free the buffer
-           usleep(50); //Test zwecke tracking an konsole da toby l210 noch nicht ufnktoniert
+           usleep(6000); //Test zwecke tracking an konsole da toby l210 noch nicht ufnktoniert
 
         }
 
@@ -166,6 +179,8 @@ void* atCommander::atCommanderStart(void* arg){
 
 
 
+
+
     while(1){
 
        // poll_return = (atTobyDevice->poll(NULL,true));
@@ -179,11 +194,13 @@ void* atCommander::atCommanderStart(void* arg){
 
         // Nur Senden, wir testen einzig ob wir daten empfangen
         if(pingPongWriteBuffer->DataAvaiable()){
-            PX4_INFO("process put evWriteDataAvaiable");
+            //PX4_INFO("process put evWriteDataAvaiable");
             atCommanderFSM->process(evWriteDataAvaiable);
         }
         else{
-            usleep(10);
+            usleep(10000);
+            //PX4_INFO("no data avaiable");
+
         }
 
 

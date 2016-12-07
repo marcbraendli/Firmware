@@ -31,6 +31,9 @@ PingPongBuffer::PingPongBuffer() {
     actualWriteBuffer = bufferList[bufferListIndex]; //aktueller zu schreibender Buffer festlegen
     actualReadBuffer = NULL;	// es gibt nichts zu lesen
 
+    pthread_cond_init(&isFull,NULL);
+    pthread_cond_init(&isEmpty,NULL);
+
 }
 
 PingPongBuffer::~PingPongBuffer() {
@@ -44,7 +47,11 @@ size_t PingPongBuffer::PutData(const char* val, size_t size){
         memcpy(actualWriteBuffer + head,val,ersterTeil);
         head+=ersterTeil;
 
+        while(DataAvaiable()){
+            pthread_mutex_lock(&pingPongBufferlock);
+            pthread_cond_wait(&isFull,&pingPongBufferlock);
 
+        }
 
         // ab hier buffer tauschen, sofern bereits gelesen
         if(!DataAvaiable()) // keine Daten sind vorhanden, der Buffer ist also frei
@@ -52,9 +59,8 @@ size_t PingPongBuffer::PutData(const char* val, size_t size){
             int zweiterTeil = size - ersterTeil;		// den überschuss berechnen
 
             //kritische Zone, actualReadBuffer kann
-            pthread_mutex_lock(&pingPongBufferlock);
+            //pthread_mutex_lock(&pingPongBufferlock);
             actualReadBuffer = actualWriteBuffer;
-            pthread_mutex_unlock(&pingPongBufferlock);
 
             changeBufferListIndex();
             head = 0;
@@ -62,10 +68,12 @@ size_t PingPongBuffer::PutData(const char* val, size_t size){
             actualWriteBuffer = bufferList[bufferListIndex]; //wir switchen den Buffer
             memcpy(actualWriteBuffer + head,val+zweiterTeil-1,zweiterTeil);
             head = zweiterTeil;
+            pthread_mutex_unlock(&pingPongBufferlock);
+
             return size;
         }
         else{
-          //  PX4_INFO("PingPongBuffer : Overflow 2.Buffer not ready ! size to put : %d ",size);
+           PX4_INFO("PingPongBuffer : Overflow 2.Buffer not ready ! size to put : %d ",size);
 
 
             return ersterTeil;
@@ -96,6 +104,7 @@ bool PingPongBuffer::GetDataSuccessfull(){
 
     pthread_mutex_lock(&pingPongBufferlock);
     actualReadBuffer = NULL;
+    pthread_cond_signal(&isFull);
     pthread_mutex_unlock(&pingPongBufferlock);
 
     return true;
