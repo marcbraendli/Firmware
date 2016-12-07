@@ -4,7 +4,8 @@
 #include "boundedBuffer.h"
 #include "pingPongBuffer.h"
 
-#include "tobyDevice.h"
+//#include "tobyDevice.h"
+#include "toby.h"
 
 
 
@@ -16,8 +17,8 @@ public:
     virtual ~atCommander();
 
     enum Event{
-        evReadDataAvaiable,
-        evWriteDataAvaiable,
+        evReadDataAvailable,
+        evWriteDataAvailable,
         evInitOk,
         evInitFail,
         evStart
@@ -27,6 +28,8 @@ public:
     void process(Event e);
 
     static void *atCommanderStart(void *arg);
+    static void *pollingThreadStart(void *arg);
+
     bool initTobyModul();
 
 
@@ -38,10 +41,11 @@ private:
     int string_compare(const char* pointer1,const char* pointer2);
 
     enum State {
-        StopState,
-        InitState,
+        InitModulState,
         WaitState,
+        InitReadState,
         ReadState,
+        InitWriteState,
         WriteState,
         ErrorState
     };
@@ -53,17 +57,21 @@ private:
 
     TobyDevice* myDevice;
 
+    myStruct pollingThreadParameters;
+    pthread_t *pollingThread;
 
     char* writeDataCommand;
     char* temporaryBuffer; // delete later, just for step-by-step test's
     char* commandBuffer; // delete later, just for step-by-step test's
 
-    const char* atCommandSend ;
+    const char* atCommandSend;
     const char* atEnterCommand;
-    const char* atCommandPingPongBufferSend ;
+    const char* atCommandPingPongBufferSend;
 
     //char temporaryBuffer[62];
     //char commandBuffer[15];
+    const char* response_at;
+    const char* response_ok;
 
 
 };

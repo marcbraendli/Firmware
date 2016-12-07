@@ -570,7 +570,7 @@ void* Toby::readWork(void *arg){
     int u = 0; //size of data received
     while(1){
 
-        i = myDevice->poll(NULL,0);
+        i = myDevice->poll(20);
         if(i>0){
           u =  myDevice->read(buffer,60);
            readBuffer->putString(buffer,u);
@@ -603,7 +603,7 @@ void *Toby::pollingThreadStart(void *arg)
     while(1){
         pthread_mutex_lock(&pollingMutex);
 
-        poll_return = myDevice->poll(NULL,true);
+        poll_return = myDevice->poll(0);
         if(poll_return > 0){
             PX4_INFO("polling Thread : poll was successfull");
      //       pthread_cond_signal(&pollEventSignal);

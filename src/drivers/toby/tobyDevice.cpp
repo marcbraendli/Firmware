@@ -107,15 +107,15 @@ TobyDevice::ioctl(int cmd, unsigned long arg)
 }
 
 
-int	TobyDevice::poll(struct pollfd *fds, bool setup){
+int	TobyDevice::poll(int timeout){
 
 
-    px4_pollfd_struct_t fds1[1];
-    fds1[0].fd = uart0_filestream; //4
-    fds1[0].events = POLLIN;
+    px4_pollfd_struct_t fds;
+    fds.fd = uart0_filestream;
+    fds.events = POLLIN;
 
 
-    int poll_return = px4_poll(fds1,1,0);
+    int poll_return = px4_poll(&fds,1,timeout);
     if(poll_return >0){
         //notify the caller
         /*
@@ -124,12 +124,7 @@ int	TobyDevice::poll(struct pollfd *fds, bool setup){
         poll_notify_one(fds, POLLIN);
         */
     }
-
-
-
     return poll_return;
-
-
 }
 
 
@@ -177,8 +172,8 @@ int TobyDeviceHelper::uart_open(struct termios* options){
     cfsetospeed(options, B57600);
 
 
-  //  cfsetispeed(&options, B9600);
-  //  cfsetospeed(&options, B9600);
+    //cfsetispeed(options, B115200);
+    //cfsetospeed(options, B115200);
 
     set_flowcontrol(localUart0_filestream,0);
     tcflush(localUart0_filestream, TCIFLUSH);

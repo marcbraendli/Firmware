@@ -6,6 +6,9 @@
 * @date     10.10.2016
 */
 
+#ifndef TOBY_H
+#define TOBY_H
+
 #include <drivers/device/device.h>
 #include <px4_config.h>
 
@@ -96,3 +99,5 @@ private:
 
 
 };
+
+#endif
