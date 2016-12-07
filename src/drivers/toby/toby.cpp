@@ -23,7 +23,7 @@
 
 
 extern "C" __EXPORT int toby_main(int argc, char *argv[]);
-
+bool AT_RESPONSE= false;
 
 /* Hilfs und Testfunktionen deklaration evt später als private in Klasse implementieren!*/
 int set_flowcontrol(int fd, int control);

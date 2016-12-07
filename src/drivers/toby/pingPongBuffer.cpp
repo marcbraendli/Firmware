@@ -42,20 +42,20 @@ PingPongBuffer::~PingPongBuffer() {
 
 size_t PingPongBuffer::PutData(const char* val, size_t size){
 
+    pthread_mutex_lock(&pingPongBufferlock);
+
     if(size >= AbsolutBufferLength - head) {		// wir haben genau Platz im buffer oder benötigen mehr platz
         int ersterTeil = AbsolutBufferLength - head; // den bestehenden Buffer fertig auffüllen
         memcpy(actualWriteBuffer + head,val,ersterTeil);
         head+=ersterTeil;
 
         while(DataAvaiable()){
-            pthread_mutex_lock(&pingPongBufferlock);
             pthread_cond_wait(&isFull,&pingPongBufferlock);
 
         }
 
         // ab hier buffer tauschen, sofern bereits gelesen
-        if(!DataAvaiable()) // keine Daten sind vorhanden, der Buffer ist also frei
-        {
+
             int zweiterTeil = size - ersterTeil;		// den überschuss berechnen
 
             //kritische Zone, actualReadBuffer kann
@@ -71,13 +71,6 @@ size_t PingPongBuffer::PutData(const char* val, size_t size){
             pthread_mutex_unlock(&pingPongBufferlock);
 
             return size;
-        }
-        else{
-           PX4_INFO("PingPongBuffer : Overflow 2.Buffer not ready ! size to put : %d ",size);
-
-
-            return ersterTeil;
-        }
 
     }
 
@@ -86,6 +79,8 @@ size_t PingPongBuffer::PutData(const char* val, size_t size){
     memcpy(actualWriteBuffer + head ,val,size);
 
     head += size;
+    pthread_mutex_unlock(&pingPongBufferlock);
+
     return size;
 
 }
@@ -115,9 +110,7 @@ bool PingPongBuffer::DataAvaiable(){
 
     bool return_value = false;
 
-    pthread_mutex_lock(&pingPongBufferlock);
     return_value = (actualReadBuffer != NULL);
-    pthread_mutex_unlock(&pingPongBufferlock);
 
 
 
