@@ -32,7 +32,7 @@ atCommander::atCommander(TobyDevice* device, BoundedBuffer* read, BoundedBuffer*
     pingPongWriteBuffer = write2;
 
     currentState = InitModulState;       //First test with ready state
-
+    //currentState = InitWriteState;
     temporaryBuffer = (char*)malloc(62*sizeof(char));
     commandBuffer = (char*)malloc(15*sizeof(char));
 
@@ -106,10 +106,14 @@ void atCommander::process(Event e){
         PX4_INFO("StateMachine: InitWriteState");
 
         write_return = myDevice->write(atCommandPingPongBufferSend,14);
+        PX4_INFO("StateMachine: InitWriteState, write_return: %d", write_return);
         if(write_return == 14)
         {
+            PX4_INFO("StateMachine: InitWriteState, change to Waitstate");
             currentState=WaitState;
+            //TODO: FSM wechselt hier den state, jedoch wird nicht mehr gepollt?
         }else{
+            PX4_INFO("StateMachine: InitWriteState, Fu**");
             //Falls schreibanfrage nicht akzeptiert wurde, delay und nochmals versuchen
             //usleep(5000);
         }
@@ -200,10 +204,12 @@ void* atCommander::atCommanderStart(void* arg){
     usleep(500);
 
     atCommander *atCommanderFSM = new atCommander(atTobyDevice,atReadBuffer,atWriteBuffer,pingPongWriteBuffer);
+
+    sleep(2);
     atCommanderFSM->process(evStart);
 
 
-    sleep(2);
+    //sleep(2);
 
     PX4_INFO("Beginn with transfer");
 
@@ -368,10 +374,7 @@ int atCommander::readATfromSD(char **atcommandbuffer)
     atcommandbufferstand--;
 
     //For Debbuging
-    printAtCommands(atcommandbuffer,atcommandbufferstand);
-
-    //PX4_INFO("atcommandbufferstand in readATfromSD fkt: %d",atcommandbufferstand);
-
+    //printAtCommands(atcommandbuffer,atcommandbufferstand);
 
     return atcommandbufferstand;
 }
@@ -412,6 +415,7 @@ void *atCommander::pollingThreadStart(void *arg)
     while(1)
     {
         poll_return= myDevice->poll(5);
+        PX4_INFO("polling Thread : I'am polling");
         if(poll_return > 0){
             PX4_INFO("polling Thread : poll was successfull");
             at_return =1;

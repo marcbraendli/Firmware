@@ -41,6 +41,8 @@ private:
     int string_compare(const char* pointer1,const char* pointer2);
 
     enum State {
+        //InitModuleReadState,
+        //InitModuleWriteState;
         InitModulState,
         WaitState,
         InitReadState,
