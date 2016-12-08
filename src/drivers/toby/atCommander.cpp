@@ -13,7 +13,8 @@
 #define PATH_TO_AT_COMMAND       "/fs/microsd/toby/at-inits.txt"
 enum{
     MAX_AT_COMMANDS = 20,
-    MAX_CHAR_PER_AT_COMMANDS =40
+    MAX_CHAR_PER_AT_COMMANDS =40,
+    READ_BUFFER_LENGHT =100
 };
 
 
@@ -31,8 +32,9 @@ atCommander::atCommander(TobyDevice* device, BoundedBuffer* read, BoundedBuffer*
     writeBuffer = write;
     pingPongWriteBuffer = write2;
 
-    currentState = InitModulState;       //First test with ready state
-    //currentState = InitWriteState;
+    //currentState = InitModulState;       //First test with ready state
+    currentState = InitWriteState;
+
     temporaryBuffer = (char*)malloc(62*sizeof(char));
     commandBuffer = (char*)malloc(15*sizeof(char));
 
@@ -41,9 +43,11 @@ atCommander::atCommander(TobyDevice* device, BoundedBuffer* read, BoundedBuffer*
     // the value 0,XX depends on the PingPongBuffer::AbsolutBufferLength!!!
     response_at     ="@";
     response_ok     ="OK";
-    atEnterCommand = "\r";
+    atEnterCommand  ="\r";
+    stringEnd       ='\0';
 
     pollingThreadParameters.myDevice = myDevice;
+
     pthread_create(pollingThread,NULL ,atCommander::pollingThreadStart,(void*)&pollingThreadParameters);
 
 }
@@ -59,16 +63,30 @@ void atCommander::process(Event e){
     char*   sendDataPointer     =0;
 
     //
+    char   atCommandSendArray[MAX_AT_COMMANDS][MAX_CHAR_PER_AT_COMMANDS];
+    int i = 0;
+    //char* stringEnd = '\0';
+    int atCommandLenght =0;
+    int numberOfAT =0;
 
+    //Anpassung da malloc nicht funktioniert,
+    //damit aber Funktionen weiterverwendet werden können
+    char* atCommandSendp[MAX_AT_COMMANDS];
+    for(int j=0; j < MAX_AT_COMMANDS; ++j)
+        atCommandSendp[j] = &atCommandSendArray[j][0];
 
+    numberOfAT=readATfromSD(atCommandSendp);
+    PX4_INFO("number of AT Commands:: %d",numberOfAT);
+    printAtCommands(atCommandSendp, numberOfAT);
 
     //
+
     switch(currentState){
 
     case InitModulState:{
         PX4_INFO("StateMachine: InitState");
 
-        bool successful = initTobyModul();
+        /*bool successful = initTobyModul();
 
         if(successful){
             currentState = WaitState;
@@ -77,14 +95,59 @@ void atCommander::process(Event e){
         else{
             currentState = ErrorState;
             PX4_INFO("switch state to ErrorState");
+        }*/
+
+        switch(e){
+        case evReadDataAvailable:
+            PX4_INFO("switch state to InitModuleReadState");
+            currentState = InitModuleReadState;
+            break;
+        case evStart:
+            currentState = InitModuleWriteState;
+            break;
+        default:
+            break;
+        }
+
+        break;
+    }
+    case InitModuleWriteState :{
+        PX4_INFO("StateMachine: InitModuleWriteState ");
+
+        atCommandLenght =getAtCommandLenght(atCommandSendp[i]);
+        write_return = myDevice->write(atCommandSendp[i], atCommandLenght);
+        if(write_return ==  atCommandLenght)
+        {
+            PX4_INFO("StateMachine: InitModuleWriteState, change to InitModulState");
+            currentState=InitModulState;
+
+        }else{
+            PX4_INFO("StateMachine: InitModuleWriteState, Fu**");
+            //Falls schreibanfrage nicht akzeptiert wurde, delay und nochmals versuchen
+            usleep(5000);
         }
         break;
     }
-    case ErrorState :{
-        PX4_INFO("StateMachine: ErrorState");
-        // error handling, maybe reinitialize toby modul?
+    case InitModuleReadState:{
+        PX4_INFO("StateMachine: InitModuleReadState");
+
+        myDevice->read(inputBuffer,READ_BUFFER_LENGHT);
+        PX4_INFO("answer :%s",inputBuffer);
+
+        if(strstr(inputBuffer,response_ok) != NULL){
+            PX4_INFO("answer :%s",inputBuffer);
+            ++i; //damit nächster Befehl gesendet wird
+        }
+        bzero(inputBuffer,READ_BUFFER_LENGHT); //buffer leeren
+        if(i>numberOfAT){
+            //Initialisierung abgeschlossen, nun kann gesendet werden
+            currentState = WaitState;
+        }else{
+            currentState = InitModuleWriteState;
+        }
         break;
     }
+
     case WaitState :{
         PX4_INFO("StateMachine: WaitState");
         switch(e){
@@ -98,7 +161,6 @@ void atCommander::process(Event e){
             currentState = InitModulState;
             break;
         default:
-
             break;
         }
     }
@@ -113,7 +175,7 @@ void atCommander::process(Event e){
             currentState=WaitState;
             //TODO: FSM wechselt hier den state, jedoch wird nicht mehr gepollt?
         }else{
-            PX4_INFO("StateMachine: InitWriteState, Fu**");
+            PX4_INFO("StateMachine: InitWriteState, no sucsessful request");
             //Falls schreibanfrage nicht akzeptiert wurde, delay und nochmals versuchen
             //usleep(5000);
         }
@@ -122,39 +184,33 @@ void atCommander::process(Event e){
     }
     case InitReadState:{
         PX4_INFO("StateMachine: InitReadState");
-        myDevice->read(inputBuffer,100);
+        myDevice->read(inputBuffer,READ_BUFFER_LENGHT);
 
         if(strstr(inputBuffer,response_at) != NULL){
             PX4_INFO("answer :%s",inputBuffer);
             currentState =WriteState;
-        }
+        }else{ // Antwork enthält kein '@'
+        PX4_INFO("StateMachine: InitReadState:, No @ ...");
+        //Falls schreibanfrage nicht akzeptiert wurde, delay und nochmals versuchen
+        usleep(5000);
+        currentState =InitWriteState;
+    }
 
+        bzero(inputBuffer,READ_BUFFER_LENGHT); //buffer leeren
         break;
     }
     case ReadState:{
         PX4_INFO("StateMachine: ReadState");
 
-        myDevice->read(inputBuffer,100);
+        myDevice->read(inputBuffer,READ_BUFFER_LENGHT);
         PX4_INFO("answer :%s",inputBuffer);
 
-        /*if(strstr(inputBuffer, response_ok) != NULL){
-            //PX4_INFO("Command Successfull : %s",at_command_send[i]);
-
-            currentState =WaitState;
-        }else */
-
-        if(strstr(inputBuffer,response_at) != NULL){
-            PX4_INFO("answer :%s",inputBuffer);
-            currentState =WaitState;
-        }else{
-            currentState =ErrorState;
-        }
+        //Copy into ReadBuffer
 
         break;
     }
     case WriteState:{
         PX4_INFO("StateMachine: WriteState");
-
 
 
         sendDataPointer =  pingPongWriteBuffer->getActualReadBuffer();
@@ -179,14 +235,18 @@ void atCommander::process(Event e){
 
         break;
     }
-        //default :
-        // break;
+
+    case ErrorState :{
+        PX4_INFO("StateMachine: ErrorState");
+        // error handling, maybe reinitialize toby modul?
+        //reboot ?
+        break;
+
+    }//from case
+    }//from switch
 
 
-    }
-
-
-}
+}//from void atCommander::process(Event e)
 
 
 void* atCommander::atCommanderStart(void* arg){
@@ -211,7 +271,7 @@ void* atCommander::atCommanderStart(void* arg){
 
     //sleep(2);
 
-    PX4_INFO("Beginn with transfer");
+    PX4_INFO("atCommanderStart::Beginn with transfer");
 
     while(1){
 
@@ -245,15 +305,14 @@ bool atCommander::initTobyModul(){
     int poll_return= 0;
     const char* pch = "OK";
     int i = 0;
-    char* stringEnd = '\0';
+    //char* stringEnd = '\0';
 
     char   at_command_send_array[MAX_AT_COMMANDS][MAX_CHAR_PER_AT_COMMANDS];
 
-    //Anpassung da malloc nicht funktioniert,
-    //damit aber Funktionen weiterverwendet werden können
     char* at_command_send[MAX_AT_COMMANDS];
     for(int j=0; j < MAX_AT_COMMANDS; ++j)
         at_command_send[j] = &at_command_send_array[j][0];
+
 
 
     int numberOfAT=readATfromSD(at_command_send);
@@ -261,7 +320,7 @@ bool atCommander::initTobyModul(){
 
     while(i <= numberOfAT)
     {
-        myDevice->write(at_command_send[i],at_command_lenght(at_command_send[i]));
+        myDevice->write(at_command_send[i],getAtCommandLenght(at_command_send[i]));
         while(poll_return < 1){
             //some stupid polling;
             poll_return = myDevice->poll(0);
@@ -282,7 +341,8 @@ bool atCommander::initTobyModul(){
             }
         }
         //dirty way to flush the read buffer
-        strncpy(temporaryBuffer,stringEnd,62);
+        //strncpy(temporaryBuffer,stringEnd,62);
+        bzero(temporaryBuffer,62);
 
 
         poll_return = 0;
@@ -298,10 +358,10 @@ bool atCommander::initTobyModul(){
  *
  * '\r'
  */
-int atCommander::at_command_lenght(const char* at_command)
+int atCommander::getAtCommandLenght(const char* atCommand)
 {
     int k=0;
-    while(at_command[k] != '\r')
+    while(atCommand[k] != *atEnterCommand)
     {
         k++;
     }
@@ -336,7 +396,6 @@ int atCommander::readATfromSD(char **atcommandbuffer)
     int 	atcommandbufferstand    = 0;
     int 	inputbufferstand        = 0;
     int 	c                       =-1;
-    char 	string_end              ='\0';
     char 	inputbuffer[MAX_CHAR_PER_AT_COMMANDS]="";
 
 
@@ -352,13 +411,13 @@ int atCommander::readATfromSD(char **atcommandbuffer)
                 }
             }while(c != EOF && c != '\n');
 
-            inputbuffer[inputbufferstand]='\r';
+            inputbuffer[inputbufferstand]=*atEnterCommand;
             inputbufferstand++;
-            inputbuffer[inputbufferstand]=string_end; //wirklich Notwendig ?
+            inputbuffer[inputbufferstand]=stringEnd; //wirklich Notwendig ?
 
             //Speicherplatz konnte nicht mit malloc alloziert werden! Griff auf ungültigen Speicherbereich zu.
             //atcommandbuffer[atcommandbufferstand] =(char*) malloc(20);
-            assert(atcommandbuffer[atcommandbufferstand]!=0);
+            //assert(atcommandbuffer[atcommandbufferstand]!=0);
             strcpy(atcommandbuffer[atcommandbufferstand],inputbuffer);
 
             inputbufferstand=0;
@@ -405,6 +464,7 @@ int atCommander::string_compare(const char* pointer1,const char* pointer2)
  * @brief Polls on the Uart and recognize AT Answers
  *
  * sets the Global variable poll_return if Datas are available
+ * we need this function because there's no SIGIO
  */
 void *atCommander::pollingThreadStart(void *arg)
 {

@@ -454,6 +454,7 @@ int Toby::open(device::file_t *filp){
     atCommanderParameters.writePongBuffer= writePongBuffer;
 
     atCommanderThread = new pthread_t;
+
     pthread_create(atCommanderThread, NULL, atCommander::atCommanderStart, (void*)&atCommanderParameters);
 
 

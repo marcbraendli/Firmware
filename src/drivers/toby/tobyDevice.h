@@ -31,7 +31,7 @@ public:
 
 
     virtual int ioctl(int cmd, unsigned long arg);
-    virtual int	poll( int timeout);
+    virtual int	poll(int timeout);
 
 private:
     int uart0_filestream;
