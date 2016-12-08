@@ -19,7 +19,8 @@ enum{
 
 
 //Globales Poll Flag
-volatile int at_return =0;
+static volatile int uart_poll =0;
+static volatile int pollingThreadStatus =0;
 
 extern pthread_cond_t Toby::pollEventSignal;  // has to be public, otherwise we cant use it from at commander
 extern pthread_mutex_t Toby::pollingMutex;
@@ -32,22 +33,20 @@ atCommander::atCommander(TobyDevice* device, BoundedBuffer* read, BoundedBuffer*
     writeBuffer = write;
     pingPongWriteBuffer = write2;
 
-    //currentState = InitModulState;       //First test with ready state
-    currentState = InitWriteState;
+    currentState = InitModulState;       //First test with ready state
+    //currentState = InitWriteState;
 
     temporaryBuffer = (char*)malloc(62*sizeof(char));
     commandBuffer = (char*)malloc(15*sizeof(char));
 
     atCommandSend   ="AT+USOWR=0,62\r";
-    atCommandPingPongBufferSend = "AT+USOWR=0,62\r";
-    // the value 0,XX depends on the PingPongBuffer::AbsolutBufferLength!!!
+    atCommandPingPongBufferSend = "AT+USOWR=0,62\r"; // the value 0,XX depends on the PingPongBuffer::AbsolutBufferLength!!!
     response_at     ="@";
     response_ok     ="OK";
     atEnterCommand  ="\r";
     stringEnd       ='\0';
 
     pollingThreadParameters.myDevice = myDevice;
-
     pthread_create(pollingThread,NULL ,atCommander::pollingThreadStart,(void*)&pollingThreadParameters);
 
 }
@@ -119,6 +118,7 @@ void atCommander::process(Event e){
         if(write_return ==  atCommandLenght)
         {
             PX4_INFO("StateMachine: InitModuleWriteState, change to InitModulState");
+            pollingThreadStatus =1;
             currentState=InitModulState;
 
         }else{
@@ -172,6 +172,7 @@ void atCommander::process(Event e){
         if(write_return == 14)
         {
             PX4_INFO("StateMachine: InitWriteState, change to Waitstate");
+            pollingThreadStatus =1;
             currentState=WaitState;
             //TODO: FSM wechselt hier den state, jedoch wird nicht mehr gepollt?
         }else{
@@ -190,11 +191,11 @@ void atCommander::process(Event e){
             PX4_INFO("answer :%s",inputBuffer);
             currentState =WriteState;
         }else{ // Antwork enthält kein '@'
-        PX4_INFO("StateMachine: InitReadState:, No @ ...");
-        //Falls schreibanfrage nicht akzeptiert wurde, delay und nochmals versuchen
-        usleep(5000);
-        currentState =InitWriteState;
-    }
+            PX4_INFO("StateMachine: InitReadState:, No @ ...");
+            //Falls schreibanfrage nicht akzeptiert wurde, delay und nochmals versuchen
+            usleep(5000);
+            currentState =InitWriteState;
+        }
 
         bzero(inputBuffer,READ_BUFFER_LENGHT); //buffer leeren
         break;
@@ -220,15 +221,13 @@ void atCommander::process(Event e){
         write_return = myDevice->write(sendDataPointer,64); //the number depends on the buffer deepness!!!!
         if(write_return != 64){
             PX4_INFO("Error writing Data to UART");
-            //Neues schreiben Initialisieren
+            //Nochmaliges schreiben Initialisieren
             currentState=InitWriteState;
         }else{
-
-            currentState=WaitState;
             pingPongWriteBuffer->GetDataSuccessfull();
             // message that we can free the buffer
-
-
+            pollingThreadStatus =1;
+            currentState=WaitState;
         }
         //write_return = myDevice->write(atEnterCommand,1); //the number depends on the buffer deepness!!!!
         //usleep(50); //Test zwecke tracking an konsole da toby l210 noch nicht ufnktoniert
@@ -264,8 +263,8 @@ void* atCommander::atCommanderStart(void* arg){
     usleep(500);
 
     atCommander *atCommanderFSM = new atCommander(atTobyDevice,atReadBuffer,atWriteBuffer,pingPongWriteBuffer);
-
-    sleep(2);
+    usleep(500);
+    //sleep(2);
     atCommanderFSM->process(evStart);
 
 
@@ -276,9 +275,14 @@ void* atCommander::atCommanderStart(void* arg){
     while(1){
 
         // poll_return = (atTobyDevice->poll(NULL,true));
-        if(at_return > 0){
-            at_return =0;
-            atCommanderFSM->process(evReadDataAvailable);
+        if(uart_poll > 0){
+            uart_poll =0;
+            PX4_INFO("Poll arrived");
+            pollingThreadStatus =0;
+
+            //atCommanderFSM->process(evReadDataAvailable);
+
+
             //*******************************************
             //read_return =  atTobyDevice->read(temporaryBuffer,62);
             //atReadBuffer->putString(temporaryBuffer,read_return);
@@ -294,7 +298,7 @@ void* atCommander::atCommanderStart(void* arg){
         //    usleep(10);
         //}
 
-
+        usleep(10000);
     }
     return NULL;
 
@@ -461,7 +465,7 @@ int atCommander::string_compare(const char* pointer1,const char* pointer2)
 }
 
 /**
- * @brief Polls on the Uart and recognize AT Answers
+ * @brief Polls on the Uart
  *
  * sets the Global variable poll_return if Datas are available
  * we need this function because there's no SIGIO
@@ -474,11 +478,15 @@ void *atCommander::pollingThreadStart(void *arg)
     int poll_return;
     while(1)
     {
-        poll_return= myDevice->poll(5);
-        PX4_INFO("polling Thread : I'am polling");
-        if(poll_return > 0){
-            PX4_INFO("polling Thread : poll was successfull");
-            at_return =1;
+        if(pollingThreadStatus)
+        {
+            poll_return= myDevice->poll(5);
+            //PX4_INFO("polling Thread : I'am polling");
+            if(poll_return > 0){
+                //PX4_INFO("polling Thread : poll was successfull");
+                uart_poll =1;
+            }
         }
+        sleep(1);
     }
 }
