@@ -37,12 +37,13 @@ private:
 
     void printAtCommands(char **atcommandbuffer, int atcommandbufferstand);
     int getAtCommandLenght(const char* atCommand);
-    int readATfromSD(char **atcommandbuffer);
+    int readAtfromSD(char **atcommandbuffer);
     int string_compare(const char* pointer1,const char* pointer2);
 
     enum State {
         InitModuleReadState,
         InitModuleWriteState,
+        InitModulIdleState,
         InitModulState,
         WaitState,
         InitReadState,

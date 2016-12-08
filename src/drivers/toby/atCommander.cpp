@@ -19,8 +19,8 @@ enum{
 
 
 //Globales Poll Flag
-static volatile int uart_poll =0;
-static volatile int pollingThreadStatus =0;
+static volatile int uart_poll;
+static volatile int pollingThreadStatus;
 
 extern pthread_cond_t Toby::pollEventSignal;  // has to be public, otherwise we cant use it from at commander
 extern pthread_mutex_t Toby::pollingMutex;
@@ -33,7 +33,7 @@ atCommander::atCommander(TobyDevice* device, BoundedBuffer* read, BoundedBuffer*
     writeBuffer = write;
     pingPongWriteBuffer = write2;
 
-    currentState = InitModulState;       //First test with ready state
+    currentState = WaitState;       //First test with ready state
     //currentState = InitWriteState;
 
     temporaryBuffer = (char*)malloc(62*sizeof(char));
@@ -46,8 +46,11 @@ atCommander::atCommander(TobyDevice* device, BoundedBuffer* read, BoundedBuffer*
     atEnterCommand  ="\r";
     stringEnd       ='\0';
 
-    pollingThreadParameters.myDevice = myDevice;
-    pthread_create(pollingThread,NULL ,atCommander::pollingThreadStart,(void*)&pollingThreadParameters);
+    uart_poll=0;
+    pollingThreadStatus=0;
+
+    //pollingThreadParameters.myDevice = myDevice;
+    //pthread_create(pollingThread,NULL ,atCommander::pollingThreadStart,(void*)&pollingThreadParameters);
 
 }
 atCommander::~atCommander(){
@@ -61,42 +64,26 @@ void atCommander::process(Event e){
     int     write_return        =0;
     char*   sendDataPointer     =0;
 
-    //
-    char   atCommandSendArray[MAX_AT_COMMANDS][MAX_CHAR_PER_AT_COMMANDS];
-    int i = 0;
-    //char* stringEnd = '\0';
-    int atCommandLenght =0;
-    int numberOfAT =0;
-
-    //Anpassung da malloc nicht funktioniert,
-    //damit aber Funktionen weiterverwendet werden können
-    char* atCommandSendp[MAX_AT_COMMANDS];
-    for(int j=0; j < MAX_AT_COMMANDS; ++j)
-        atCommandSendp[j] = &atCommandSendArray[j][0];
-
-    numberOfAT=readATfromSD(atCommandSendp);
-    PX4_INFO("number of AT Commands:: %d",numberOfAT);
-    printAtCommands(atCommandSendp, numberOfAT);
-
-    //
-
     switch(currentState){
 
     case InitModulState:{
-        PX4_INFO("StateMachine: InitState");
 
-        /*bool successful = initTobyModul();
+        PX4_INFO("StateMachine: InitModulState");
+
+        bool successful = initTobyModul();
 
         if(successful){
-            currentState = WaitState;
             PX4_INFO("switch state to WaitState");
+            currentState = WaitState;
+
         }
         else{
-            currentState = ErrorState;
             PX4_INFO("switch state to ErrorState");
-        }*/
+            currentState = ErrorState;
 
-        switch(e){
+        }
+
+        /*switch(e){
         case evReadDataAvailable:
             PX4_INFO("switch state to InitModuleReadState");
             currentState = InitModuleReadState;
@@ -106,11 +93,11 @@ void atCommander::process(Event e){
             break;
         default:
             break;
-        }
+        }*/
 
         break;
     }
-    case InitModuleWriteState :{
+        /*    case InitModuleWriteState :{
         PX4_INFO("StateMachine: InitModuleWriteState ");
 
         atCommandLenght =getAtCommandLenght(atCommandSendp[i]);
@@ -146,7 +133,7 @@ void atCommander::process(Event e){
             currentState = InitModuleWriteState;
         }
         break;
-    }
+    }*/
 
     case WaitState :{
         PX4_INFO("StateMachine: WaitState");
@@ -168,13 +155,13 @@ void atCommander::process(Event e){
         PX4_INFO("StateMachine: InitWriteState");
 
         write_return = myDevice->write(atCommandPingPongBufferSend,14);
-        PX4_INFO("StateMachine: InitWriteState, write_return: %d", write_return);
+        //PX4_INFO("StateMachine: InitWriteState, write_return: %d", write_return);
         if(write_return == 14)
         {
             PX4_INFO("StateMachine: InitWriteState, change to Waitstate");
-            pollingThreadStatus =1;
+            //pollingThreadStatus =1;
             currentState=WaitState;
-            //TODO: FSM wechselt hier den state, jedoch wird nicht mehr gepollt?
+
         }else{
             PX4_INFO("StateMachine: InitWriteState, no sucsessful request");
             //Falls schreibanfrage nicht akzeptiert wurde, delay und nochmals versuchen
@@ -233,7 +220,9 @@ void atCommander::process(Event e){
         //usleep(50); //Test zwecke tracking an konsole da toby l210 noch nicht ufnktoniert
 
         break;
-    }
+    default:
+            break;
+        }
 
     case ErrorState :{
         PX4_INFO("StateMachine: ErrorState");
@@ -260,27 +249,30 @@ void* atCommander::atCommanderStart(void* arg){
     TobyDevice *atTobyDevice = arguments->myDevice;
     PingPongBuffer *pingPongWriteBuffer = arguments->writePongBuffer;
 
-    usleep(500);
+    //sleep(1);
 
     atCommander *atCommanderFSM = new atCommander(atTobyDevice,atReadBuffer,atWriteBuffer,pingPongWriteBuffer);
-    usleep(500);
-    //sleep(2);
+    //usleep(500);
+    sleep(1);
+
+    PX4_INFO("atCommanderFSM->process(evStart);");
     atCommanderFSM->process(evStart);
+    //sleep(1);
 
-
-    //sleep(2);
+    sleep(2); //Delay für Toby Initialisierung
 
     PX4_INFO("atCommanderStart::Beginn with transfer");
 
     while(1){
 
-        // poll_return = (atTobyDevice->poll(NULL,true));
+        uart_poll = (atTobyDevice->poll(0));
+        sleep(1);
         if(uart_poll > 0){
             uart_poll =0;
             PX4_INFO("Poll arrived");
             pollingThreadStatus =0;
 
-            //atCommanderFSM->process(evReadDataAvailable);
+            atCommanderFSM->process(evReadDataAvailable);
 
 
             //*******************************************
@@ -294,52 +286,55 @@ void* atCommander::atCommanderStart(void* arg){
             PX4_INFO("process put evWriteDataAvaiable");
             atCommanderFSM->process(evWriteDataAvailable);
         }*/
-        //else{
-        //    usleep(10);
-        //}
 
-        usleep(10000);
     }
-    return NULL;
-
+    return 0;
 }
-
+/**
+ * @brief Takes the AT-Commands from the SD-Card and Initilazied Toby with these
+ *
+ * @return True uf sucessful
+ */
 bool atCommander::initTobyModul(){
 
-    int poll_return= 0;
-    const char* pch = "OK";
-    int i = 0;
-    //char* stringEnd = '\0';
+    int pollReturn  = 0;
+    int numberOfAt  = 0;
+    int i           = 0;
 
-    char   at_command_send_array[MAX_AT_COMMANDS][MAX_CHAR_PER_AT_COMMANDS];
+    char   atCommandSendArray[MAX_AT_COMMANDS][MAX_CHAR_PER_AT_COMMANDS];
 
-    char* at_command_send[MAX_AT_COMMANDS];
+
+    //Anpassung da malloc nicht funktioniert,
+    //damit aber Funktionen weiterverwendet werden können
+    char* atCommandSendp[MAX_AT_COMMANDS];
     for(int j=0; j < MAX_AT_COMMANDS; ++j)
-        at_command_send[j] = &at_command_send_array[j][0];
+        atCommandSendp[j] = &atCommandSendArray[j][0];
 
 
 
-    int numberOfAT=readATfromSD(at_command_send);
-    PX4_INFO("number of AT Commands:: %d",numberOfAT);
+    numberOfAt=readAtfromSD(atCommandSendp);
+    PX4_INFO("number of AT Commands:: %d",numberOfAt);
+    printAtCommands(atCommandSendp, numberOfAt);
 
-    while(i <= numberOfAT)
+    while(i < numberOfAt)
     {
-        myDevice->write(at_command_send[i],getAtCommandLenght(at_command_send[i]));
-        while(poll_return < 1){
+        myDevice->write(atCommandSendp[i], strlen(atCommandSendp[i]));
+        PX4_INFO("strlen %d",strlen(atCommandSendp[i]));
+        while(pollReturn < 1){
             //some stupid polling;
-            poll_return = myDevice->poll(0);
+            pollReturn = myDevice->poll(0);
             usleep(100);
         }
         sleep(1);
-        poll_return = myDevice->read(temporaryBuffer,62);
-        if(strstr(temporaryBuffer, pch) != NULL){
-            PX4_INFO("Command Successfull : %s",at_command_send[i]);
-            PX4_INFO("answer :  : %s",temporaryBuffer);
+        myDevice->read(temporaryBuffer,62);
+        if(strstr(temporaryBuffer, response_ok) != NULL){
+            PX4_INFO("Command Successfull : %s",atCommandSendp[i]);
+            PX4_INFO("answer : %s",temporaryBuffer);
 
             ++i; //sucessfull, otherwise, retry
         }
         else{
-            PX4_INFO("Command failed : %s", at_command_send[i]);
+            PX4_INFO("Command failed : %s", atCommandSendp[i]);
             if(i > 0){
                 --i; //we try the last command befor, because if we can't connect to static ip, it closes the socket automatically and we need to reopen
             }
@@ -349,7 +344,7 @@ bool atCommander::initTobyModul(){
         bzero(temporaryBuffer,62);
 
 
-        poll_return = 0;
+        pollReturn = 0;
     }
     PX4_INFO("sucessfull init");
 
@@ -358,7 +353,7 @@ bool atCommander::initTobyModul(){
 }
 
 /**
- * @brief gibt die länge des AT-Commands zurück
+ * @brief gibt die länge des AT-Commands zurück NOT USED strlen
  *
  * '\r'
  */
@@ -395,7 +390,7 @@ void atCommander::printAtCommands(char **atcommandbuffer, int atcommandbuffersta
  * @return Number of AT-Commands
  * @param char-array pointer
  */
-int atCommander::readATfromSD(char **atcommandbuffer)
+int atCommander::readAtfromSD(char **atcommandbuffer)
 {   FILE*   sd_stream               = fopen(PATH_TO_AT_COMMAND, "r");
     int 	atcommandbufferstand    = 0;
     int 	inputbufferstand        = 0;
@@ -417,7 +412,7 @@ int atCommander::readATfromSD(char **atcommandbuffer)
 
             inputbuffer[inputbufferstand]=*atEnterCommand;
             inputbufferstand++;
-            inputbuffer[inputbufferstand]=stringEnd; //wirklich Notwendig ?
+            inputbuffer[inputbufferstand]=stringEnd; //Now we can work with string-fkt
 
             //Speicherplatz konnte nicht mit malloc alloziert werden! Griff auf ungültigen Speicherbereich zu.
             //atcommandbuffer[atcommandbufferstand] =(char*) malloc(20);
@@ -428,23 +423,20 @@ int atCommander::readATfromSD(char **atcommandbuffer)
             atcommandbufferstand++;
         } while(c != EOF);
     }else{
-        PX4_INFO("SD-Karte NICHT offen");
+        PX4_INFO("SD-Card NOT Open");
     }
 
     fclose(sd_stream);
-    PX4_INFO("SD-Karte geschlossen");
+    PX4_INFO("SD-Card Closed");
 
     atcommandbufferstand--;
-
-    //For Debbuging
-    //printAtCommands(atcommandbuffer,atcommandbufferstand);
 
     return atcommandbufferstand;
 }
 
 
 /**
- * @brief compares two char array
+ * @brief compares two char array NOT USED
  *
  * Compares two arrays until the first one is terminatet with '\0'
  *
