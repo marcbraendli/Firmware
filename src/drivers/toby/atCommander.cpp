@@ -33,7 +33,7 @@ atCommander::atCommander(TobyDevice* device, BoundedBuffer* read, BoundedBuffer*
     writeBuffer = write;
     pingPongWriteBuffer = write2;
 
-    currentState = WaitState;       //First test with ready state
+    currentState = InitModulState;       //First test with ready state
     //currentState = InitWriteState;
 
     temporaryBuffer = (char*)malloc(62*sizeof(char));
@@ -70,17 +70,19 @@ void atCommander::process(Event e){
 
         PX4_INFO("StateMachine: InitModulState");
 
-        bool successful = initTobyModul();
+        if(e == evStart){
+            bool successful = initTobyModul();
 
-        if(successful){
-            PX4_INFO("switch state to WaitState");
-            currentState = WaitState;
+            if(successful){
+                PX4_INFO("sucessfull init, switch to WaitState");
+                currentState = WaitState;
 
-        }
-        else{
-            PX4_INFO("switch state to ErrorState");
-            currentState = ErrorState;
+            }
+            else{
+                PX4_INFO("switch to ErrorState");
+                currentState = ErrorState;
 
+            }
         }
 
         /*switch(e){
@@ -144,10 +146,9 @@ void atCommander::process(Event e){
         case evReadDataAvailable:
             currentState = ReadState;
             break;
-        case evStart:
-            currentState = InitModulState;
-            break;
         default:
+            PX4_INFO("switch to ErrorState");
+            currentState = ErrorState;
             break;
         }
     }
@@ -159,13 +160,12 @@ void atCommander::process(Event e){
         if(write_return == 14)
         {
             PX4_INFO("StateMachine: InitWriteState, change to Waitstate");
-            //pollingThreadStatus =1;
+            pollingThreadStatus =1;
             currentState=WaitState;
 
         }else{
-            PX4_INFO("StateMachine: InitWriteState, no sucsessful request");
-            //Falls schreibanfrage nicht akzeptiert wurde, delay und nochmals versuchen
-            //usleep(5000);
+            PX4_INFO("StateMachine: InitWriteState, no sucsessfull request");
+            //Falls schreibanfrage wurde nicht akzeptiert, delay und nochmals versuchen
         }
 
         break;
@@ -265,7 +265,10 @@ void* atCommander::atCommanderStart(void* arg){
 
     while(1){
 
-        uart_poll = (atTobyDevice->poll(0));
+        if(pollingThreadStatus)
+        {
+            uart_poll = atTobyDevice->poll(0);
+        }
         sleep(1);
         if(uart_poll > 0){
             uart_poll =0;
@@ -318,11 +321,11 @@ bool atCommander::initTobyModul(){
 
     while(i < numberOfAt)
     {
-        myDevice->write(atCommandSendp[i], strlen(atCommandSendp[i]));
-        PX4_INFO("strlen %d",strlen(atCommandSendp[i]));
+        myDevice->write(atCommandSendp[i], getAtCommandLenght(atCommandSendp[i]));
         while(pollReturn < 1){
             //some stupid polling;
-            pollReturn = myDevice->poll(0);
+            // Senden & Empfangen von  50 Zeichen bei 57600 Baud dauert 2 x 0.86 ms =1,73ms
+            pollReturn = myDevice->poll(2);
             usleep(100);
         }
         sleep(1);
@@ -336,7 +339,7 @@ bool atCommander::initTobyModul(){
         else{
             PX4_INFO("Command failed : %s", atCommandSendp[i]);
             if(i > 0){
-                --i; //we try the last command befor, because if we can't connect to static ip, it closes the socket automatically and we need to reopen
+                --i; //we try the last command before, because if we can't connect to static ip, it closes the socket automatically and we need to reopen
             }
         }
         //dirty way to flush the read buffer
@@ -346,14 +349,14 @@ bool atCommander::initTobyModul(){
 
         pollReturn = 0;
     }
-    PX4_INFO("sucessfull init");
+
 
     return true;
 
 }
 
 /**
- * @brief gibt die länge des AT-Commands zurück NOT USED strlen
+ * @brief gibt die länge des AT-Commands zurück
  *
  * '\r'
  */
@@ -411,8 +414,10 @@ int atCommander::readAtfromSD(char **atcommandbuffer)
             }while(c != EOF && c != '\n');
 
             inputbuffer[inputbufferstand]=*atEnterCommand;
-            inputbufferstand++;
-            inputbuffer[inputbufferstand]=stringEnd; //Now we can work with string-fkt
+
+
+            //inputbufferstand++;
+            //inputbuffer[inputbufferstand]=stringEnd; //Now we could work with string-fkt
 
             //Speicherplatz konnte nicht mit malloc alloziert werden! Griff auf ungültigen Speicherbereich zu.
             //atcommandbuffer[atcommandbufferstand] =(char*) malloc(20);
