@@ -161,7 +161,7 @@ void atCommander::process(Event e){
         {
             PX4_INFO("StateMachine: InitWriteState, change to Waitstate");
             pollingThreadStatus =1;
-            currentState=WaitState;
+            currentState=WriteState;
 
         }else{
             PX4_INFO("StateMachine: InitWriteState, no sucsessfull request");
@@ -176,7 +176,7 @@ void atCommander::process(Event e){
 
         if(strstr(inputBuffer,response_at) != NULL){
             PX4_INFO("answer :%s",inputBuffer);
-            currentState =WriteState;
+            currentState =ReadState;
         }else{ // Antwork enthält kein '@'
             PX4_INFO("StateMachine: InitReadState:, No @ ...");
             //Falls schreibanfrage nicht akzeptiert wurde, delay und nochmals versuchen
@@ -275,7 +275,8 @@ void* atCommander::atCommanderStart(void* arg){
             PX4_INFO("Poll arrived");
             pollingThreadStatus =0;
 
-            atCommanderFSM->process(evReadDataAvailable);
+            atCommanderFSM->process(evResponse);
+            //atCommanderFSM->process(evReadDataAvailable);
 
 
             //*******************************************
