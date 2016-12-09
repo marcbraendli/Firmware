@@ -2,7 +2,7 @@
 #include "px4_log.h"
 
 enum{
-    BUFDEEPTH = 62,
+    BUFDEEPTH = 128,
 };
 
 
@@ -52,6 +52,7 @@ int BoundedBuffer::getString(char *val, size_t size){
 
     while(this->empty()){
         pthread_cond_wait(&isEmpty,&bufferlock);
+        PX4_INFO("Buffer is empty");
     }
 
     if(mySize[tail] > size ){
@@ -94,12 +95,13 @@ bool BoundedBuffer::putString(const char* val, size_t size){
        sleep(2);
 
    }
-   if(size > 62){
+   if(size > 128){
        PX4_INFO("Bounded Buffer: Not enough space!");
+     //  size = 64;
    }
 
     memcpy(myBuffer[head],val,size);
-  //  PX4_INFO("boundedBuffer: saved String is %s",myBuffer[head]);
+   // PX4_INFO("boundedBuffer: saved String is %s",myBuffer[head]);
 
     mySize[head] = size;
     numElements++;

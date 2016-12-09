@@ -6,6 +6,13 @@
 
 #include "tobyDevice.h"
 
+struct threadParameter //TODO rename
+{
+    TobyDevice* myDevice;
+    BoundedBuffer* readBuffer;
+
+};
+
 
 
 class atCommander
@@ -32,6 +39,7 @@ public:
 
 private:
 
+    static void* readWork(void *arg);
     enum State {
         StopState,
         InitState,
@@ -48,14 +56,20 @@ private:
 
     TobyDevice* myDevice;
 
+    pthread_t* atReaderThread;
+    threadParameter readerParameters;
+
 
     char* writeDataCommand;
     char* temporaryBuffer; // delete later, just for step-by-step test's
     char* commandBuffer; // delete later, just for step-by-step test's
+    char* temporarySendBuffer;
+
 
     const char* atCommandSend ;
     const char* atEnterCommand;
     const char* atCommandPingPongBufferSend ;
+    const char* atDirectLinkCommand;
 
 
 };

@@ -54,6 +54,8 @@ size_t PingPongBuffer::PutData(const char* val, size_t size){
 
         }
 
+        PX4_INFO("BUFFER : save data into new empty buffer");
+
         // ab hier buffer tauschen, sofern bereits gelesen
 
             int zweiterTeil = size - ersterTeil;		// den überschuss berechnen
@@ -98,7 +100,7 @@ int PingPongBuffer::GetData(char *val, size_t size){
 bool PingPongBuffer::GetDataSuccessfull(){
 
     pthread_mutex_lock(&pingPongBufferlock);
-    actualReadBuffer = NULL;
+    actualReadBuffer = 0;
     pthread_cond_signal(&isFull);
     pthread_mutex_unlock(&pingPongBufferlock);
 
@@ -110,7 +112,7 @@ bool PingPongBuffer::DataAvaiable(){
 
     bool return_value = false;
 
-    return_value = (actualReadBuffer != NULL);
+    return_value = (actualReadBuffer != 0);
 
 
 

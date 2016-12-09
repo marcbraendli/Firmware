@@ -18,10 +18,15 @@ atCommander::atCommander(TobyDevice* device, BoundedBuffer* read, BoundedBuffer*
     currentState = StopState;       //First test with ready state
 
     temporaryBuffer = (char*)malloc(62*sizeof(char));
+    temporarySendBuffer = (char*)malloc(62*sizeof(char));
+
     commandBuffer = (char*)malloc(15*sizeof(char));
     atCommandSend = "AT+USOWR=0,62\r";
-    atCommandPingPongBufferSend = "AT+USOWR=0,64\r"; // the value 0,XX depends on the PingPongBuffer::AbsolutBufferLength!!!
-    atEnterCommand = "\r";
+    atCommandPingPongBufferSend = "at+usost=0,\"178.196.15.59\",44444,10,\""; // 37    the value 0,XX depends on the PingPongBuffer::AbsolutBufferLength!!!
+    atEnterCommand = "\"\r\n"; // length 3
+
+
+    atDirectLinkCommand = "AT+USODL=0\r";
 
 
 
@@ -44,6 +49,47 @@ void atCommander::process(Event e){
             if(successful){
                 currentState = WaitState;
                 PX4_INFO("switch state to WaitState");
+                PX4_INFO("Direct Link Connection");
+                myDevice->write(atDirectLinkCommand,11);
+                const char* pch = "CONNECT";
+                const char* stringEnd = '\0';
+                strncpy(temporaryBuffer,stringEnd,62);
+                PX4_INFO("Polling for CommandOK");
+                int poll_return = 0;
+                while(poll_return < 1){
+                    //some stupid polling;
+                    poll_return = myDevice->poll(NULL,true);
+                    usleep(100000);
+            }
+                int read_return = myDevice->read(temporaryBuffer,62);
+                PX4_INFO("read returns : %d",read_return);
+                if(strstr(temporaryBuffer, pch) != NULL){
+                    PX4_INFO("response sucessfull : %s",temporaryBuffer);
+
+                }
+                else{
+
+                    PX4_INFO("response : %s",temporaryBuffer);
+                    strncpy(temporaryBuffer,stringEnd,62);
+                    read_return = myDevice->read(temporaryBuffer,62);
+                    PX4_INFO("ERROR response : %s",temporaryBuffer);
+
+
+                }
+
+
+
+
+
+
+
+
+                sleep(1);
+                readerParameters.myDevice = myDevice;
+                readerParameters.readBuffer = readBuffer;
+                atReaderThread = new pthread_t();
+                pthread_create(atReaderThread, NULL, atCommander::readWork, (void*)&readerParameters);
+
             }
             else{
                 currentState = ErrorState;
@@ -69,130 +115,18 @@ void atCommander::process(Event e){
 
         if(e == evWriteDataAvaiable){
 
-            //**************old function******************
-            /*
-            PX4_INFO("evWriteDataAvaiable : ");
-
-            int write_return = (writeBuffer->getString(temporaryBuffer,62));
-            PX4_INFO("writeBuffer has to write :  %d",write_return);
-            sleep(1);
-
-            //send "AT+USOWR=0,"
-            myDevice->write(atCommandSend,14);
-            //PX4_INFO("AT COMMAND: write %d of 14 commands",write_return);
-            char numberToWrite[10] = "";
-            //parse number to write from int to string
-            itoa(write_return,numberToWrite,10);
-
-            PX4_INFO("Number to write : %s",numberToWrite);
-            write_return = myDevice->write(temporaryBuffer,62);
-            PX4_INFO("write number of character to toby device : %i",write_return);
-            PX4_INFO("write number of character to toby device : %s",numberToWrite);
-
-            //flush the count string
-            char* stringEnd = '\0';
-            strncpy(numberToWrite,stringEnd,10);
 
 
-            */
+           int buffer_return = writeBuffer->getString(temporarySendBuffer,128);
 
-            // new function********************************************
+           int write_return = myDevice->write(temporarySendBuffer,buffer_return); //the number depends on the buffer deepness!!!!
+           PX4_INFO("successfull write %d",write_return);
 
-
-            /*
-            PX4_INFO("StateMachine: evWriteDataAavaiable : send Test data");
-            const char* testText = "HelloFromDrone";
-            const char* atSendtestText = "AT+USOWR=0,14\r";
-
-            myDevice->write(atSendtestText,14);
-            usleep(20000);
-            myDevice->write(testText,14);
-
-            */
-
-
-           //PX4_INFO("StateMachine: evWriteDataAavaiable : send data");
-           char* stringEnd = '\0';
-           const char* pch = "@";
-           int poll_return = 0;
-           int read_return = 0;
-           strncpy(temporaryBuffer,stringEnd,62);
-           char* sendDataPointer = NULL;
-           bool dataIsAvaiable = false;
-           sendDataPointer =  pingPongWriteBuffer->getActualReadBuffer();
-           PX4_INFO("Send Command : ");
-           myDevice->write(atCommandPingPongBufferSend,14);
-
-           while(!dataIsAvaiable){
-               PX4_INFO("Polling for CommandOK");
-               poll_return = 0;
-               while(poll_return < 1){
-                   //some stupid polling;
-                   poll_return = myDevice->poll(NULL,true);
-                   usleep(10000);
-           }
-               read_return = myDevice->read(temporaryBuffer,62);
-               PX4_INFO("read returns : %d",read_return);
-               if(strstr(temporaryBuffer, pch) != NULL){
-                   dataIsAvaiable = true;
-                   PX4_INFO("response sucessfull : %s",temporaryBuffer);
-
-               }
-               else{
-
-                   PX4_INFO("response : %s",temporaryBuffer);
-                   strncpy(temporaryBuffer,stringEnd,62);
-                   dataIsAvaiable = false;
-                   read_return = myDevice->read(temporaryBuffer,62);
-                   PX4_INFO("ERROR response : %s",temporaryBuffer);
-
-
-               }
-
-           }
-
-
-           PX4_INFO("Begin to send");
-           int write_return = myDevice->write(sendDataPointer,64); //the number depends on the buffer deepness!!!!
-           if(write_return != 64){
+           if(write_return != buffer_return){
                PX4_INFO("Error writing Data to UART");
            }
-
-
-
-
-
-
-
-           strncpy(temporaryBuffer,stringEnd,62);
-           bool transmittOk = false;
-           const char* pch2 = "0,64";
-
-           while(!transmittOk){
-               PX4_INFO("Polling for sendOK");
-               poll_return = 0;
-               while(poll_return < 1){
-                   //some stupid polling;
-                   poll_return = myDevice->poll(NULL,true);
-
-           }
-               usleep(30000);
-               read_return = myDevice->read(temporaryBuffer,62);
-               PX4_INFO("read returns : %d",read_return);
-               if(strstr(temporaryBuffer, pch2) != NULL){
-                   transmittOk = true;
-                   PX4_INFO("response sucessfull: %s",temporaryBuffer);
-
-               }
-               else{
-
-                   PX4_INFO("ERROR response : %s",temporaryBuffer);
-                   strncpy(temporaryBuffer,stringEnd,62);
-               }
-
-          }
-
-           pingPongWriteBuffer->GetDataSuccessfull(); // message that we can free the buffer
+           usleep(10000);
+           //pingPongWriteBuffer->GetDataSuccessfull(); // message that we can free the buffer
 
 
         }
@@ -242,8 +176,8 @@ void* atCommander::atCommanderStart(void* arg){
 
     int poll_return = 0;
    // int write_return = 0; // number data to write
-   // int read_return = 0;
-   // char* temporaryBuffer = (char*)malloc(62*sizeof(char));
+
+    //char* temporaryReadBuffer = (char*)malloc(62*sizeof(char));
 
 
     //return NULL;
@@ -253,6 +187,18 @@ void* atCommander::atCommanderStart(void* arg){
 
 
     while(1){
+        while(1){
+
+
+            atCommanderFSM->process(evWriteDataAvaiable);
+            usleep(10000);
+        }
+
+
+
+
+
+
 
        // poll_return = (atTobyDevice->poll(NULL,true));
         if(poll_return > 0){
@@ -269,7 +215,7 @@ void* atCommander::atCommanderStart(void* arg){
             atCommanderFSM->process(evWriteDataAvaiable);
         }
         else{
-            usleep(100);
+            usleep(10000);
             PX4_INFO("no data avaiable");
 
         }
@@ -301,19 +247,20 @@ bool atCommander::initTobyModul(){
                                                         "ATI9\r",
                                                         "at+upsd=0,100,3\r",
                                                         "at+upsda=0,3\r",                       //dangerous command, may we have to check the activated socket, now we code hard!
-                                                        "at+usocr=6\r",
+                                                        "at+usocr=6\r",                         // 6 TCP, 17 UDP
                                                         "at+usoco=0,\"178.196.15.59\",44444\r",
 
                                                        };
 
 
-
+    PX4_INFO("Beginn with Initialization");
     int i = 0;
     char* stringEnd = '\0';
     while(i < 18){
         myDevice->write(at_command_send[i],at_command_lenght2(at_command_send[i]));
         while(poll_return < 1){
             //some stupid polling;
+            //PX4_INFO("Polling");
             poll_return = myDevice->poll(NULL,true);
             usleep(100);
         }
@@ -355,4 +302,57 @@ int at_command_lenght2(const char* at_command)
     }
 
     return k+1;
+}
+
+
+
+void* atCommander::readWork(void *arg){
+
+    PX4_INFO("readWork Thread started");
+    //extract arguments :
+    threadParameter *arguments = static_cast<threadParameter*>(arg);
+    BoundedBuffer* readBuffer = arguments->readBuffer;
+    TobyDevice* myDevice = arguments->myDevice;
+
+
+
+
+    // a ty
+    char* buffer = (char*)malloc(64*sizeof(char));
+
+
+    if(myDevice == NULL || readBuffer == NULL){
+        PX4_INFO("readWork Thread parameters invalid");
+
+    }
+    int i = 0; // poll result handle
+    int u = 0; //size of data received
+    while(1){
+
+        i = myDevice->poll(NULL,0);
+        if(i>0){
+            usleep(10000);
+          u =  myDevice->read(buffer,128);
+           readBuffer->putString(buffer,u);
+           PX4_INFO("readWorker successfull read %d",u);
+
+
+        }
+        else{
+             usleep(10000);
+
+
+        }
+        if(buffer == NULL){
+            PX4_INFO("READ WORKER NULLPOINTER");
+        }
+        usleep(10000);
+
+    }
+
+
+    PX4_INFO("readWork exit");
+
+    return NULL;
+
 }
