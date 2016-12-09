@@ -21,7 +21,8 @@ public:
         evWriteDataAvailable,
         evInitOk,
         evInitFail,
-        evStart
+        evStart,
+        evResponse
 
     };
 
@@ -41,14 +42,8 @@ private:
     int string_compare(const char* pointer1,const char* pointer2);
 
     enum State {
-        InitModuleReadState,
-        InitModuleWriteState,
-        InitModulIdleState,
         InitModulState,
         WaitState,
-        InitReadState,
-        ReadState,
-        InitWriteState,
         WriteState,
         ErrorState
     };
@@ -70,7 +65,7 @@ private:
     const char* atCommandSend;
     const char* atEnterCommand;
     const char* atCommandPingPongBufferSend;
-    char        stringEnd;
+    //char        stringEnd;
 
     //char temporaryBuffer[62];
     //char commandBuffer[15];

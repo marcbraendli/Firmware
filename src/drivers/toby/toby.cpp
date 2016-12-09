@@ -48,7 +48,7 @@ Toby::Toby() :
     VDev("toby", "/dev/toby")
 #endif
 {
-	init();
+    init();
     writeBuffer = new BoundedBuffer();
     readBuffer = new BoundedBuffer();
     done = true;
@@ -89,9 +89,9 @@ int Toby::init()
 {
     PX4_INFO("TOBY::init");
 #ifdef __PX4_NUTTX
-	CDev::init();
+    CDev::init();
 #else
-	VDev::init();
+    VDev::init();
 #endif
     //myTobyDevice = new TobyDevice();
     toby_init();
@@ -454,7 +454,6 @@ int Toby::open(device::file_t *filp){
     atCommanderParameters.writePongBuffer= writePongBuffer;
 
     atCommanderThread = new pthread_t;
-
     pthread_create(atCommanderThread, NULL, atCommander::atCommanderStart, (void*)&atCommanderParameters);
 
 
