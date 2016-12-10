@@ -154,7 +154,7 @@ int uart_app_main(int argc, char *argv[])
 
         case Receive:
         {
-            int poll_ret = myToby->poll(NULL,FALSE);
+            int poll_ret = myToby->poll(0);
 
             if (poll_ret == 0)
             {

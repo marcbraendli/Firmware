@@ -107,15 +107,15 @@ TobyDevice::ioctl(int cmd, unsigned long arg)
 }
 
 
-int	TobyDevice::poll(struct pollfd *fds, bool setup){
+int	TobyDevice::poll(int timeout){
 
 
-    px4_pollfd_struct_t fds1[1];
-    fds1[0].fd = uart0_filestream; //4
-    fds1[0].events = POLLIN;
+    px4_pollfd_struct_t fds;
+    fds.fd = uart0_filestream; //4
+    fds.events = POLLIN;
 
 
-    int poll_return = px4_poll(fds1,1,0);
+    int poll_return = px4_poll(&fds,1,timeout);
     if(poll_return >0){
         //notify the caller
         /*

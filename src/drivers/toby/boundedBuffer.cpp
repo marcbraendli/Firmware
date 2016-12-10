@@ -95,7 +95,7 @@ bool BoundedBuffer::putString(const char* val, size_t size){
        sleep(2);
 
    }
-   if(size > 128){
+   if(size > BUFDEEPTH){
        PX4_INFO("Bounded Buffer: Not enough space!");
      //  size = 64;
    }

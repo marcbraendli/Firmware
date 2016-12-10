@@ -6,6 +6,9 @@
 
 #include "tobyDevice.h"
 
+//for readATfromSD
+#define PATH       "/fs/microsd/toby/at-inits.txt"
+
 struct threadParameter //TODO rename
 {
     TobyDevice* myDevice;
@@ -39,7 +42,11 @@ public:
 
 private:
 
+    void printAtCommands(char **atcommandbuffer, int atcommandbufferstand);
+    int getAtCommandLenght(const char* atCommand);
+    int readAtfromSD(char **atcommandbuffer);
     static void* readWork(void *arg);
+
     enum State {
         StopState,
         InitState,
@@ -47,6 +54,14 @@ private:
         ReadState,
         WriteState,
         ErrorState
+    };
+
+    //for readATfromSD
+
+    enum{
+        MAX_AT_COMMANDS = 20,
+        MAX_CHAR_PER_AT_COMMANDS =40,
+        READ_BUFFER_LENGHT =100
     };
 
     State currentState;
@@ -70,6 +85,9 @@ private:
     const char* atEnterCommand;
     const char* atCommandPingPongBufferSend ;
     const char* atDirectLinkCommand;
+    const char* response_at;
+    const char* atResponseOk;
+    const char* atReadyRequest;
 
 
 };
