@@ -25,13 +25,10 @@ atCommander::atCommander(TobyDevice* device, BoundedBuffer* read, BoundedBuffer*
     atCommandSend = "AT+USOWR=0,62\r";
     atCommandPingPongBufferSend = "at+usost=0,\"178.196.15.59\",44444,10,\""; // 37    the value 0,XX depends on the PingPongBuffer::AbsolutBufferLength!!!
     atEnterCommand = "\"\r\n"; // length 3
-
-
     atDirectLinkCommand = "AT+USODL=0\r";
-
     atReadyRequest="AT\r";
-
-
+    atDirectLinkOk="CONNECT";
+    stringEnd='\0';
 }
 atCommander::~atCommander(){
 
@@ -52,9 +49,10 @@ void atCommander::process(Event e){
                 PX4_INFO("switch state to WaitState");
                 PX4_INFO("Direct Link Connection");
                 myDevice->write(atDirectLinkCommand,11);
-                const char* pch = "CONNECT";
-                const char* stringEnd = '\0';
-                strncpy(temporaryBuffer,stringEnd,62);
+                //const char* pch = "CONNECT";
+                //const char* stringEnd = '\0';
+
+                bzero(temporaryBuffer,62);
                 PX4_INFO("Polling for CommandOK");
                 int poll_return = 0;
                 while(poll_return < 1){
@@ -64,26 +62,17 @@ void atCommander::process(Event e){
                 }
                 int read_return = myDevice->read(temporaryBuffer,62);
                 PX4_INFO("read returns : %d",read_return);
-                if(strstr(temporaryBuffer, pch) != NULL){
+                if(strstr(temporaryBuffer, atDirectLinkOk) != NULL){
                     PX4_INFO("response sucessfull : %s",temporaryBuffer);
 
                 }
                 else{
-
-                    PX4_INFO("response : %s",temporaryBuffer);
-                    strncpy(temporaryBuffer,stringEnd,62);
-                    read_return = myDevice->read(temporaryBuffer,62);
-                    PX4_INFO("ERROR response : %s",temporaryBuffer);
-
-
+                    PX4_INFO("ERROR response: %s",temporaryBuffer);
+                    currentState = ErrorState;
+                    //PX4_INFO("response : %s",temporaryBuffer);
+                    //strncpy(temporaryBuffer,stringEnd,62);
+                    //read_return = myDevice->read(temporaryBuffer,62);
                 }
-
-
-
-
-
-
-
 
                 sleep(1);
                 readerParameters.myDevice = myDevice;
@@ -262,14 +251,14 @@ bool atCommander::initTobyModul(){
 
     //Anpassung da malloc nicht funktioniert,
     //damit Funktionen weiterverwendet werden können
-    char* at_command_send[MAX_AT_COMMANDS];
+    char* atCommandSendp[MAX_AT_COMMANDS];
 
     for(int j=0; j < MAX_AT_COMMANDS; ++j)
-        at_command_send[j] = &atCommandSendArray[j][0];
+        atCommandSendp[j] = &atCommandSendArray[j][0];
 
-    int numberOfAT=readAtfromSD(at_command_send);
+    int numberOfAT=readAtfromSD(atCommandSendp);
 
-    //printAtCommands(at_command_send,numberOfAT);
+    //printAtCommands(atCommandSendp,numberOfAT);
 
     bzero(temporaryBuffer,62);
 
@@ -279,7 +268,7 @@ bool atCommander::initTobyModul(){
 
 
         returnWriteValue = myDevice->write(atReadyRequest,getAtCommandLenght(atReadyRequest));
-        PX4_INFO("getAtCommandLenght(atReadyRequest) %d",getAtCommandLenght(atReadyRequest));
+        //PX4_INFO("getAtCommandLenght(atReadyRequest) %d",getAtCommandLenght(atReadyRequest));
         if(returnWriteValue > 0){
 
             returnPollValue = myDevice->poll(5);
@@ -305,7 +294,7 @@ bool atCommander::initTobyModul(){
 
     //char* stringEnd = '\0';
     while(i < numberOfAT){
-        myDevice->write(at_command_send[i],getAtCommandLenght(at_command_send[i]));
+        myDevice->write(atCommandSendp[i],getAtCommandLenght(atCommandSendp[i]));
         while(returnValue < 1){
             //some stupid polling;
             //PX4_INFO("Polling");
@@ -315,13 +304,13 @@ bool atCommander::initTobyModul(){
         sleep(1);
         returnValue = myDevice->read(temporaryBuffer,62);
         if(strstr(temporaryBuffer,atResponseOk) != 0){
-            PX4_INFO("Command Successfull : %s",at_command_send[i]);
+            PX4_INFO("Command Successfull : %s",atCommandSendp[i]);
             PX4_INFO("answer: %s",temporaryBuffer);
 
             ++i; //sucessfull, otherwise, retry
         }
         else{
-            PX4_INFO("Command failed: %s", at_command_send[i]);
+            PX4_INFO("Command failed: %s", atCommandSendp[i]);
             if(i > 0){
                 --i; //we try the last command befor, because if we can't connect to static ip, it closes the socket automatically and we need to reopen
             }

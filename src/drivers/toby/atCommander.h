@@ -88,6 +88,8 @@ private:
     const char* response_at;
     const char* atResponseOk;
     const char* atReadyRequest;
+    const char* atDirectLinkOk;
+    const char* stringEnd;
 
 
 };
