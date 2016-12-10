@@ -2,7 +2,7 @@
 #include "px4_log.h"
 
 enum{
-    BUFDEEPTH = 62,
+    BUFDEEPTH = 128,
 };
 
 
@@ -94,7 +94,7 @@ bool BoundedBuffer::putString(const char* val, size_t size){
        sleep(2);
 
    }
-   if(size > 62){
+   if(size > BUFDEEPTH){
        PX4_INFO("Bounded Buffer: Not enough space!");
    }
 

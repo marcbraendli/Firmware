@@ -8,6 +8,13 @@
 #include "toby.h"
 
 
+struct threadParameter //TODO rename
+{
+    TobyDevice* myDevice;
+    BoundedBuffer* readBuffer;
+
+};
+
 
 class atCommander
 
@@ -22,7 +29,7 @@ public:
         evInitOk,
         evInitFail,
         evStart,
-        evResponse
+        evResponse,
 
     };
 
@@ -30,6 +37,7 @@ public:
 
     static void *atCommanderStart(void *arg);
     static void *pollingThreadStart(void *arg);
+    static void *readWork(void *arg);
 
     bool initTobyModul();
 
@@ -45,6 +53,9 @@ private:
         InitModulState,
         WaitState,
         WriteState,
+        StopState,
+        InitState,
+        ReadState,
         ErrorState
     };
 
@@ -55,16 +66,22 @@ private:
 
     TobyDevice* myDevice;
 
-    myStruct pollingThreadParameters;
-    pthread_t *pollingThread;
+    //myStruct pollingThreadParameters;
+    //pthread_t *pollingThread;
+
+    pthread_t* atReaderThread;
+    threadParameter readerParameters;
 
     char* writeDataCommand;
     char* temporaryBuffer; // delete later, just for step-by-step test's
     char* commandBuffer; // delete later, just for step-by-step test's
+    char* temporarySendBuffer;
 
     const char* atCommandSend;
     const char* atEnterCommand;
     const char* atCommandPingPongBufferSend;
+    const char* atDirectLinkCommand;
+
     //char        stringEnd;
 
     //char temporaryBuffer[62];

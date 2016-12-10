@@ -717,9 +717,7 @@ int Mavlink::mavlink_open_uart(int baud, const char *uart_name, struct termios *
 				}
 			}
 
-			usleep(100000);
-            PX4_INFO("::open() uart in While-Schlaufe mit %s",uart_name);               //debugging
-
+            usleep(100000);
 			_uart_fd = ::open(uart_name, O_RDWR | O_NOCTTY);
 		};
 

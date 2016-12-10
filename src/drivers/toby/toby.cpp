@@ -213,14 +213,15 @@ ssize_t	Toby::write(device::file_t *filp, const char *buffer, size_t buflen){
   }
     */
     //the new function
-  //  PX4_INFO("Toby::write() is called");
+    PX4_INFO("Toby::write() is called");
 
 
      //writeBuffer->putString(buffer,buflen);
-     return writePongBuffer->PutData(buffer,buflen);
+
+     writeBuffer->putString(buffer,buflen);
      //sleep(1);
     // return myTobyDevice->write(buffer,buflen);
-    // return buflen;
+    return buflen;
 
 
 
