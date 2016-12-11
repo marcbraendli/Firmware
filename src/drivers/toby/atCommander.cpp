@@ -275,12 +275,14 @@ void* atCommander::atCommanderStart(void* arg){
     //return NULL;
 
     //to start all
-    //atCommanderFSM->process(evStart);
+    atCommanderFSM->process(evStart);
 
-    char buf[20];
-    char sendbuf[]="Hallo";
+    //Pollingtests
+    //char buf[20];
+    //char sendbuf[]="Hallo";
 
     while(1){
+        /*Pollingtests
         while (1) {
 
 
@@ -309,7 +311,7 @@ void* atCommander::atCommanderStart(void* arg){
             }
             usleep(10000);
 
-        }
+        }*/
 
 
 
