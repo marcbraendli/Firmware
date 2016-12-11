@@ -9,6 +9,10 @@ extern pthread_cond_t Toby::pollEventSignal;  // has to be public, otherwise we 
 extern pthread_mutex_t Toby::pollingMutex;
 int at_command_lenght2(const char* at_command);
 
+volatile int uart_poll;
+volatile int pollingThreadStatus;
+
+
 atCommander::atCommander(TobyDevice* device, BoundedBuffer* read, BoundedBuffer* write, PingPongBuffer* write2){
 
     myDevice = device;
@@ -16,7 +20,7 @@ atCommander::atCommander(TobyDevice* device, BoundedBuffer* read, BoundedBuffer*
     writeBuffer = write;
     pingPongWriteBuffer = write2;
 
-   // currentState = StopState;       //First test with ready state
+    // currentState = StopState;       //First test with ready state
 
     currentState = InitState;
 
@@ -35,6 +39,14 @@ atCommander::atCommander(TobyDevice* device, BoundedBuffer* read, BoundedBuffer*
 
     for(int j=0; j < MAX_AT_COMMANDS; ++j)
         atCommandSendp[j] = &atCommandSendArray[j][0];
+
+    uart_poll=0;
+    pollingThreadStatus=0;
+
+ //   pollingThreadParameters.myDevice = device;
+ //   pollingThread = new pthread_t();
+ //  pthread_create(pollingThread, NULL,atCommander::pollingThreadStart, (void*)&pollingThreadParameters);
+
 }
 atCommander::~atCommander(){
 
@@ -112,9 +124,9 @@ void atCommander::process(Event e){
 
                     if(initTobyModul()==true){
 
-                       PX4_INFO("InitState: Toby initialized");
+                        PX4_INFO("InitState: Toby initialized");
 
-                       currentState = SetupState;
+                        currentState = SetupState;
 
                     }else{
                         PX4_INFO("InitState: Toby NOT initialized");
@@ -132,7 +144,7 @@ void atCommander::process(Event e){
         break;
     }
     case ErrorState :{
-         PX4_INFO("ErrorState");
+        PX4_INFO("ErrorState");
         // error handling, maybe reinitialize32 toby modul?
         break;
 
@@ -178,42 +190,38 @@ void atCommander::process(Event e){
 
 
 
-        break;
-    }
-    case WriteState :{
-        //this don't work yet -----------------------------------------------------------------
+            break;
+        }
+        case WriteState :{
+            //this don't work yet -----------------------------------------------------------------
 
-        //-------------------------------------------------------------------------------------
+            //-------------------------------------------------------------------------------------
 
-        if(e == evWriteDataAvailable){
-            int buffer_return = writeBuffer->getString(temporarySendBuffer,128);
+            if(e == evWriteDataAvailable){
+                int buffer_return = writeBuffer->getString(temporarySendBuffer,128);
 
-            int write_return = myDevice->write(temporarySendBuffer,buffer_return); //the number depends on the buffer deepness!!!!
-            PX4_INFO("successfull write %d",write_return);
+                int write_return = myDevice->write(temporarySendBuffer,buffer_return); //the number depends on the buffer deepness!!!!
+                PX4_INFO("successfull write %d",write_return);
 
-            if(write_return != buffer_return){
-                PX4_INFO("Error writing Data to UART");
+                if(write_return != buffer_return){
+                    PX4_INFO("Error writing Data to UART");
+                }
+                usleep(10000);
+                //pingPongWriteBuffer->GetDataSuccessfull(); // message that we can free the buffer
+
+
             }
-            usleep(10000);
-            //pingPongWriteBuffer->GetDataSuccessfull(); // message that we can free the buffer
+            break;
+        }
+        default :
+
+            break;
 
 
         }
-        break;
-    }
-    default :
-
-        break;
-
-
-    }
 
     }
 }
-
-
-
-
 
 
 //******************************start and intercation Function*******************************
@@ -266,24 +274,51 @@ void* atCommander::atCommanderStart(void* arg){
 
     //return NULL;
 
+    //to start all
+    //atCommanderFSM->process(evStart);
 
-    atCommanderFSM->process(evStart);
-
+    char buf[20];
+    char sendbuf[]="Hallo";
 
     while(1){
+        while (1) {
+
+
+            if(!pollingThreadStatus){
+                atTobyDevice->write(sendbuf,5);
+                pollingThreadStatus=1;
+
+            }
+
+            if(pollingThreadStatus)
+            {
+
+                poll_return= atTobyDevice->poll(0);
+                //PX4_INFO("polling Thread : I'am polling");
+                if(poll_return > 0){
+                    //PX4_INFO("polling Thread : poll was successfull");
+                    uart_poll =1;
+                }
+            }
+
+            if(poll_return > 0){
+                pollingThreadStatus=0;
+                usleep(10000);
+                atTobyDevice->read(buf,20);
+                PX4_INFO("buf %s", buf);
+            }
+            usleep(10000);
+
+        }
+
+
+
         while(1){
 
 
             atCommanderFSM->process(evWriteDataAvailable);
             usleep(10000);
         }
-
-
-
-
-
-
-
         // poll_return = (atTobyDevice->poll(NULL,true));
         if(poll_return > 0){
             atCommanderFSM->process(evReadDataAvailable);
@@ -321,7 +356,7 @@ void* atCommander::atCommanderStart(void* arg){
 
 bool atCommander::tobyAlive(int times){
 
-    PX4_INFO("Check for %d times for Toby", times);
+    PX4_INFO("Check %d times for Toby", times);
     bool    returnValue     =false;
     int     returnPollValue =0;
     int     returnWriteValue=0;
@@ -358,7 +393,11 @@ bool atCommander::tobyAlive(int times){
     return returnValue;
 }
 
-
+/**
+ * @brief Initialized the Toby
+ *
+ * initialized the Toby Modul with the At-Commands from atCommandSendArray
+ */
 bool atCommander::initTobyModul(){
 
     //int         returnPollValue= 0;
@@ -471,7 +510,6 @@ int atCommander::getAtCommandLenght(const char* at_command)
     return k;
 }
 
-
 /**
  * @brief Gibt die AT-Commands als PX4_Info aus
  *
@@ -541,13 +579,38 @@ bool atCommander::readAtfromSD()
 
     //For Debbuging
     //printAtCommands(atcommandbuffer,atcommandbufferstand);
-    PX4_INFO("atcommandbufferstand in readATfromSD fkt: %d", numberOfAt);
+    //PX4_INFO("atcommandbufferstand in readATfromSD fkt: %d", numberOfAt);
 
 
     return returnValue;
 }
 
+/**
+ * @brief Polls on the Uart
+ *
+ * sets the Global variable poll_return if Datas are available
+ * we need this function because there's no SIGIO
+ */
+void *atCommander::pollingThreadStart(void *arg)
+{
+    threadParameter *arguments = static_cast<threadParameter*>(arg);
+    TobyDevice* myDevice = arguments->myDevice;
 
+    int poll_return;
+    while(1)
+    {
+        if(pollingThreadStatus)
+        {
+            poll_return= myDevice->poll(0);
+            //PX4_INFO("polling Thread : I'am polling");
+            if(poll_return > 0){
+                //PX4_INFO("polling Thread : poll was successfull");
+                uart_poll =1;
+            }
+        }
+        usleep(50000);
+    }
+}
 
 void* atCommander::readWork(void *arg){
 

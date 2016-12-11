@@ -47,6 +47,7 @@ private:
     bool initTobyModul();
     bool readAtfromSD();
 
+    static void* pollingThreadStart(void *arg);
     static void* readWork(void *arg);
     bool tobyAlive(int times);
 
@@ -76,7 +77,10 @@ private:
     TobyDevice* myDevice;
 
     pthread_t* atReaderThread;
+    pthread_t* pollingThread;
+
     threadParameter readerParameters;
+    threadParameter pollingThreadParameters;
 
     char  atCommandSendArray[MAX_AT_COMMANDS][MAX_CHAR_PER_AT_COMMANDS];
     char* atCommandSendp[MAX_AT_COMMANDS];
