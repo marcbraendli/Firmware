@@ -26,8 +26,8 @@ public:
     virtual ~atCommander();
 
     enum Event{
-        evReadDataAvaiable,
-        evWriteDataAvaiable,
+        evReadDataAvailable,
+        evWriteDataAvailable,
         evInitOk,
         evInitFail,
         evStart
@@ -37,15 +37,18 @@ public:
     void process(Event e);
 
     static void *atCommanderStart(void *arg);
-    bool initTobyModul();
+
 
 
 private:
 
-    void printAtCommands(char **atcommandbuffer, int atcommandbufferstand);
+    void printAtCommands();
     int getAtCommandLenght(const char* atCommand);
-    int readAtfromSD(char **atcommandbuffer);
+    bool initTobyModul();
+    bool readAtfromSD();
+
     static void* readWork(void *arg);
+    bool tobyAlive(int times);
 
     enum State {
         StopState,
@@ -53,7 +56,8 @@ private:
         WaitState,
         ReadState,
         WriteState,
-        ErrorState
+        ErrorState,
+        SetupState
     };
 
     //for readATfromSD
@@ -74,6 +78,8 @@ private:
     pthread_t* atReaderThread;
     threadParameter readerParameters;
 
+    char  atCommandSendArray[MAX_AT_COMMANDS][MAX_CHAR_PER_AT_COMMANDS];
+    char* atCommandSendp[MAX_AT_COMMANDS];
 
     char* writeDataCommand;
     char* temporaryBuffer; // delete later, just for step-by-step test's
@@ -81,6 +87,7 @@ private:
     char* temporarySendBuffer;
 
 
+    int         numberOfAt;
     const char* atCommandSend ;
     const char* atEnterCommand;
     const char* atCommandPingPongBufferSend ;

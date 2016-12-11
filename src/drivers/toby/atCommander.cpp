@@ -16,7 +16,9 @@ atCommander::atCommander(TobyDevice* device, BoundedBuffer* read, BoundedBuffer*
     writeBuffer = write;
     pingPongWriteBuffer = write2;
 
-    currentState = StopState;       //First test with ready state
+   // currentState = StopState;       //First test with ready state
+
+    currentState = InitState;
 
     temporaryBuffer = (char*)malloc(62*sizeof(char));
     temporarySendBuffer = (char*)malloc(62*sizeof(char));
@@ -29,6 +31,10 @@ atCommander::atCommander(TobyDevice* device, BoundedBuffer* read, BoundedBuffer*
     atReadyRequest="AT\r";
     atDirectLinkOk="CONNECT";
     stringEnd='\0';
+    atResponseOk="OK";
+
+    for(int j=0; j < MAX_AT_COMMANDS; ++j)
+        atCommandSendp[j] = &atCommandSendArray[j][0];
 }
 atCommander::~atCommander(){
 
@@ -40,10 +46,10 @@ void atCommander::process(Event e){
     switch(currentState){
 
 
-    case StopState :
-
+    case StopState :{
+        bool successful=false;
         if(e == evStart){
-            bool successful = initTobyModul();
+            //bool successful = initTobyModul();
             if(successful){
                 currentState = WaitState;
                 PX4_INFO("switch state to WaitState");
@@ -88,25 +94,98 @@ void atCommander::process(Event e){
         }
         currentState = WaitState;
         break;
+    }
+    case InitState:{
 
-    case InitState:
-        PX4_INFO("in InitState");
+        PX4_INFO("InitState");
+        if(e == evStart){
 
+            if(tobyAlive(100)==true){
+
+                PX4_INFO("InitState: Toby connected");
+
+                if(readAtfromSD()>0){
+
+                    PX4_INFO("InitState: Read AT-Commands from SD card");
+
+                    printAtCommands();
+
+                    if(initTobyModul()==true){
+
+                       PX4_INFO("InitState: Toby initialized");
+
+                       currentState = SetupState;
+
+                    }else{
+                        PX4_INFO("InitState: Toby NOT initialized");
+                        currentState = ErrorState;
+                    }
+                }else{
+                    PX4_INFO("InitState: No SD-Card or corrupted");
+                    currentState = ErrorState;
+                }
+            }else{
+                PX4_INFO("InitState: Toby NOT connected");
+                currentState = ErrorState;
+            }
+        }
         break;
-
-    case ErrorState :
+    }
+    case ErrorState :{
+         PX4_INFO("ErrorState");
         // error handling, maybe reinitialize32 toby modul?
         break;
 
-    case WaitState :
+    case SetupState :{
+
+            PX4_INFO("ReadyState");
+            PX4_INFO("Direct Link Connection");
+            myDevice->write(atDirectLinkCommand,getAtCommandLenght(atDirectLinkCommand));
+            //const char* pch = "CONNECT";
+            //const char* stringEnd = '\0';
+
+
+            PX4_INFO("Polling for CommandOK");
+            int poll_return = 0;
+            while(poll_return < 1){
+                //some stupid polling;
+                poll_return = myDevice->poll(0);
+                usleep(100000);
+            }
+
+            bzero(temporaryBuffer,62);
+            PX4_INFO("temporaryBuffer check : %s",temporaryBuffer);
+
+            int read_return = myDevice->read(temporaryBuffer,62);
+
+            PX4_INFO("read returns : %d",read_return);
+            PX4_INFO("Direct Link : %s",temporaryBuffer);
+
+            if(strstr(temporaryBuffer, atDirectLinkOk) != 0){
+                sleep(1);
+                readerParameters.myDevice = myDevice;
+                readerParameters.readBuffer = readBuffer;
+                atReaderThread = new pthread_t();
+                pthread_create(atReaderThread, NULL, atCommander::readWork, (void*)&readerParameters);
+
+                currentState=WriteState;
+
+
+            }else{
+                currentState = SetupState;
+            }
+
+
+
+
+        break;
+    }
+    case WriteState :{
         //this don't work yet -----------------------------------------------------------------
 
         //-------------------------------------------------------------------------------------
 
-        if(e == evWriteDataAvaiable){
-
-
-
+        if(e == evWriteDataAvailable){
             int buffer_return = writeBuffer->getString(temporarySendBuffer,128);
 
             int write_return = myDevice->write(temporarySendBuffer,buffer_return); //the number depends on the buffer deepness!!!!
@@ -120,10 +199,8 @@ void atCommander::process(Event e){
 
 
         }
-
-
         break;
-
+    }
     default :
 
         break;
@@ -131,7 +208,7 @@ void atCommander::process(Event e){
 
     }
 
-
+    }
 }
 
 
@@ -157,8 +234,25 @@ void* atCommander::atCommanderStart(void* arg){
     usleep(500);
 
     atCommander *atCommanderFSM = new atCommander(atTobyDevice,atReadBuffer,atWriteBuffer,pingPongWriteBuffer);
-    atCommanderFSM->process(evStart);
 
+    //usleep(500);
+
+    /*bool check = atCommanderFSM->tobyAlive(100);
+
+    PX4_INFO("tobyAlive %d", check);
+
+    int sdreturn = atCommanderFSM->readAtfromSD();
+
+    PX4_INFO("read from sd card %d", sdreturn);
+
+    atCommanderFSM->printAtCommands();
+
+    bool initcheck = atCommanderFSM->initTobyModul();
+    //atCommanderFSM->process(evStart);
+
+    PX4_INFO("initcheck %d", initcheck);
+
+    atCommanderFSM->printAtCommands();*/
 
     sleep(2);
 
@@ -173,14 +267,14 @@ void* atCommander::atCommanderStart(void* arg){
     //return NULL;
 
 
-
+    atCommanderFSM->process(evStart);
 
 
     while(1){
         while(1){
 
 
-            atCommanderFSM->process(evWriteDataAvaiable);
+            atCommanderFSM->process(evWriteDataAvailable);
             usleep(10000);
         }
 
@@ -192,7 +286,7 @@ void* atCommander::atCommanderStart(void* arg){
 
         // poll_return = (atTobyDevice->poll(NULL,true));
         if(poll_return > 0){
-            atCommanderFSM->process(evReadDataAvaiable);
+            atCommanderFSM->process(evReadDataAvailable);
             //*******************************************
             //read_return =  atTobyDevice->read(temporaryBuffer,62);
             //atReadBuffer->putString(temporaryBuffer,read_return);
@@ -202,7 +296,7 @@ void* atCommander::atCommanderStart(void* arg){
         // Nur Senden, wir testen einzig ob wir daten empfangen
         if(pingPongWriteBuffer->DataAvaiable()){
             //PX4_INFO("process put evWriteDataAvaiable");
-            atCommanderFSM->process(evWriteDataAvaiable);
+            atCommanderFSM->process(evWriteDataAvailable);
         }
         else{
             usleep(10000);
@@ -217,17 +311,65 @@ void* atCommander::atCommanderStart(void* arg){
 }
 
 
+/**
+ * @brief Checks the connection to Toby
+ *
+ *Sends a "AT" and checks if a "AT OK" returns
+ *
+ * @param times, the pixhawk trys so many times to get a answer from Toby
+ */
+
+bool atCommander::tobyAlive(int times){
+
+    PX4_INFO("Check for %d times for Toby", times);
+    bool    returnValue     =false;
+    int     returnPollValue =0;
+    int     returnWriteValue=0;
+    int     i               =0;
+
+    do{
+
+        returnWriteValue = myDevice->write(atReadyRequest,getAtCommandLenght(atReadyRequest));
+
+        if(returnWriteValue > 0){
+
+            returnPollValue = myDevice->poll(0);
+            //PX4_INFO("tobyAlive returnPollValue :%d",returnPollValue);
+            sleep(1);
+        }
+        if(returnPollValue>0){
+            bzero(temporaryBuffer,62);
+            //PX4_INFO("Jetzt wird gelesen");
+            myDevice->read(temporaryBuffer,62);
+            //PX4_INFO("tobyAlive answer :%s",temporaryBuffer);
+            if(strstr(temporaryBuffer,atResponseOk) != 0){
+                //PX4_INFO("tobyAlive Command Successfull : %s",atReadyRequest);
+                //PX4_INFO("Toby is connected",temporaryBuffer);
+                returnValue=true;
+            }else{
+                bzero(temporaryBuffer,62);
+            }
+        }
+        ++i;
+        sleep(1);
+    }
+    while((returnValue != true)&(i<times));
+
+    return returnValue;
+}
+
+
 bool atCommander::initTobyModul(){
 
-    int         returnPollValue= 0;
-    int         returnWriteValue= 0;
+    //int         returnPollValue= 0;
+    //int         returnWriteValue= 0;
     int         returnValue= 0;
 
     //const char* pch = "OK";
     int i = 0;
-    bool tobyReady =false;
+    //bool tobyReady =false;
     //int i   =0;
-    char   atCommandSendArray[MAX_AT_COMMANDS][MAX_CHAR_PER_AT_COMMANDS];
+
     /*const char *at_command_send[18]={"ATE0\r",
                                                         "AT+IPR=57600\r",
                                                         "AT+CMEE=2\r",
@@ -251,49 +393,19 @@ bool atCommander::initTobyModul(){
 
     //Anpassung da malloc nicht funktioniert,
     //damit Funktionen weiterverwendet werden können
-    char* atCommandSendp[MAX_AT_COMMANDS];
+    //char* atCommandSendp[MAX_AT_COMMANDS];
 
-    for(int j=0; j < MAX_AT_COMMANDS; ++j)
-        atCommandSendp[j] = &atCommandSendArray[j][0];
+    // for(int j=0; j < MAX_AT_COMMANDS; ++j)
+    // atCommandSendp[j] = &atCommandSendArray[j][0];
 
-    int numberOfAT=readAtfromSD(atCommandSendp);
+    //int numberOfAT=readAtfromSD(atCommandSendp);
 
     //printAtCommands(atCommandSendp,numberOfAT);
-
-    bzero(temporaryBuffer,62);
-
-    while(!tobyReady){
-
-
-
-
-        returnWriteValue = myDevice->write(atReadyRequest,getAtCommandLenght(atReadyRequest));
-        //PX4_INFO("getAtCommandLenght(atReadyRequest) %d",getAtCommandLenght(atReadyRequest));
-        if(returnWriteValue > 0){
-
-            returnPollValue = myDevice->poll(5);
-            PX4_INFO("returnPollValue :%d",returnPollValue);
-            sleep(1);
-        }
-        if(returnPollValue>0){
-            myDevice->read(temporaryBuffer,62);
-            if(strstr(temporaryBuffer,atResponseOk) != 0){
-                PX4_INFO("Command Successfull : %s",atReadyRequest);
-                PX4_INFO("answer :%s",temporaryBuffer);
-                tobyReady=true;
-            }
-        }
-
-        sleep(1);
-
-    }
-
-
 
     PX4_INFO("Beginn with Initialization");
 
     //char* stringEnd = '\0';
-    while(i < numberOfAT){
+    while(i < numberOfAt){
         myDevice->write(atCommandSendp[i],getAtCommandLenght(atCommandSendp[i]));
         while(returnValue < 1){
             //some stupid polling;
@@ -365,12 +477,12 @@ int atCommander::getAtCommandLenght(const char* at_command)
  *
  *
  */
-void atCommander::printAtCommands(char **atcommandbuffer, int atcommandbufferstand)
+void atCommander::printAtCommands()
 {
-    PX4_INFO("%s beinhaltet %d Zeilen",PATH,atcommandbufferstand);
-    for(int j=0 ; j < atcommandbufferstand ; j++)
+    PX4_INFO("%s beinhaltet %d Zeilen",PATH,numberOfAt);
+    for(int j=0 ; j < numberOfAt ; j++)
     {
-        PX4_INFO("Inhalt %d %s",j ,atcommandbuffer[j]);
+        PX4_INFO("Inhalt %d %s",j ,atCommandSendp[j]);
     }
 }
 
@@ -382,17 +494,19 @@ void atCommander::printAtCommands(char **atcommandbuffer, int atcommandbuffersta
  * @return Number of AT-Commands
  * @param char-array pointer
  */
-int atCommander::readAtfromSD(char **atcommandbuffer)
+bool atCommander::readAtfromSD()
 {
     FILE*   sd_stream               = fopen(PATH, "r");
     int 	atcommandbufferstand    = 0;
     int 	inputbufferstand        = 0;
+    bool     returnValue            =false;
     int 	c                       =-1;
     char 	string_end              ='\0';
     char 	inputbuffer[MAX_CHAR_PER_AT_COMMANDS]="";
 
     if(sd_stream) {
-        PX4_INFO("SD-Card open");
+        returnValue=true;
+        PX4_INFO("SD card open");
         do { // read all lines in file
             do{ // read one line until EOF
                 c = fgetc(sd_stream);
@@ -410,26 +524,27 @@ int atCommander::readAtfromSD(char **atcommandbuffer)
             //Speicherplatz konnte nicht mit malloc alloziert werden! Griff auf ungültigen Speicherbereich zu.
             //atcommandbuffer[atcommandbufferstand] =(char*) malloc(20);
             //assert(atcommandbuffer[atcommandbufferstand]!=0);
-            strcpy(atcommandbuffer[atcommandbufferstand],inputbuffer);
+            strcpy(atCommandSendp[atcommandbufferstand],inputbuffer);
 
             inputbufferstand=0;
             atcommandbufferstand++;
         } while(c != EOF);
     }else{
-        PX4_INFO("SD-Card NOT open");
+        PX4_INFO("No SD card or corrupted");
     }
 
     fclose(sd_stream);
-    PX4_INFO("SD-Card-Closed");
+    PX4_INFO("SD card closed");
 
     atcommandbufferstand--;
+    numberOfAt=atcommandbufferstand;
 
     //For Debbuging
     //printAtCommands(atcommandbuffer,atcommandbufferstand);
-    //PX4_INFO("atcommandbufferstand in readATfromSD fkt: %d",atcommandbufferstand);
+    PX4_INFO("atcommandbufferstand in readATfromSD fkt: %d", numberOfAt);
 
 
-    return atcommandbufferstand;
+    return returnValue;
 }
 
 
