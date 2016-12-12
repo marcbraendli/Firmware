@@ -1,3 +1,12 @@
+/**
+* @file     atCommander.h
+*
+* @brief    Initialize the Toby Modul and handles the communication
+* @author   Marc Brändli
+* @date     12.12.2016
+*/
+
+
 #ifndef atCommander_h
 #define atCommander_h
 
@@ -6,8 +15,8 @@
 
 #include "tobyDevice.h"
 
-//for readATfromSD
-#define PATH       "/fs/microsd/toby/at-inits.txt"
+//for readAtfromSD function
+#define SD_CARD_PATH       "/fs/microsd/toby/at-inits.txt"
 
 struct threadParameter //TODO rename
 {
@@ -22,35 +31,49 @@ class atCommander
 
 {
 public:
-    atCommander(TobyDevice* device, BoundedBuffer* read, BoundedBuffer* write, PingPongBuffer* write2);
-    virtual ~atCommander();
-
+    //event Signals for the FSM
     enum Event{
         evReadDataAvailable,
         evWriteDataAvailable,
         evInitOk,
         evInitFail,
         evStart
-
     };
 
+    /**
+     * @brief
+     *
+     * @param
+     * @return
+     */
+    atCommander(TobyDevice* device, BoundedBuffer* read, BoundedBuffer* write, PingPongBuffer* write2);
+
+    /**
+     * @brief
+     *
+     * @param
+     * @return
+     */
+    virtual ~atCommander();
+
+    /**
+     * @brief
+     *
+     * @param
+     * @return
+     */
     void process(Event e);
 
+    /**
+     * @brief
+     *
+     * @param
+     * @return
+     */
     static void *atCommanderStart(void *arg);
 
-
-
 private:
-
-    void printAtCommands();
-    int getAtCommandLenght(const char* atCommand);
-    bool initTobyModul();
-    bool readAtfromSD();
-
-    static void* pollingThreadStart(void *arg);
-    static void* readWork(void *arg);
-    bool tobyAlive(int times);
-
+    //States for the FSM
     enum State {
         StopState,
         InitState,
@@ -60,49 +83,91 @@ private:
         ErrorState,
         SetupState
     };
-
-    //for readATfromSD
-
+    //Enumeration for readAtfromSD function
     enum{
         MAX_AT_COMMANDS = 20,
         MAX_CHAR_PER_AT_COMMANDS =40,
         READ_BUFFER_LENGHT =100
     };
 
+
+    /**
+     * @brief Prints the AT-Commands from the parameter
+     *
+     * @param start-adress from the Command
+     */
+    void printAtCommands();
+
+    /**
+     * @brief returns the lenght of a char-array
+     *
+     * this function is needed because strleng() doesn't work for us
+     *
+     * @return lenght of a char-array includes '\r'
+     *
+     */
+    int getAtCommandLenght(const char* atCommand);
+
+    /**
+     * @brief Initialized the Toby
+     *
+     * initialized the Toby Modul with the At-Commands from atCommandSendArray
+     *
+     * @return true if initialisation was succssesfull
+     */
+    bool initTobyModul();
+
+    /**
+     * @brief read the AT-Commands from the SD-Card
+     *
+     * read the AT-Commands from the SD-Card into the atCommandSendArray
+     *
+     * @return Number of AT-Commands, if return value = -1, this means there's no SD card
+     */
+    bool readAtfromSD();
+
+    /**
+     * @brief
+     *
+     * @param
+     * @return
+     */
+    static void* readWork(void *arg);
+
+    /**
+     * @brief Checks the connection to Toby
+     *
+     *Sends a "AT" and checks if a "AT OK" returns
+     *
+     * @param times, the pixhawk trys so many times to get a answer from Toby
+     */
+    bool tobyAlive(int times);
+
+
     State currentState;
     BoundedBuffer* readBuffer;
     BoundedBuffer* writeBuffer;
     PingPongBuffer* pingPongWriteBuffer;
-
     TobyDevice* myDevice;
 
     pthread_t* atReaderThread;
-    pthread_t* pollingThread;
-
     threadParameter readerParameters;
-    threadParameter pollingThreadParameters;
+
+    int         numberOfAt;
 
     char  atCommandSendArray[MAX_AT_COMMANDS][MAX_CHAR_PER_AT_COMMANDS];
     char* atCommandSendp[MAX_AT_COMMANDS];
 
     char* writeDataCommand;
     char* temporaryBuffer; // delete later, just for step-by-step test's
-    char* commandBuffer; // delete later, just for step-by-step test's
     char* temporarySendBuffer;
 
-
-    int         numberOfAt;
-    const char* atCommandSend ;
     const char* atEnterCommand;
-    const char* atCommandPingPongBufferSend ;
-    const char* atDirectLinkCommand;
-    const char* response_at;
+    const char* atDirectLinkRequest;
     const char* atResponseOk;
     const char* atReadyRequest;
     const char* atDirectLinkOk;
     const char* stringEnd;
-
-
 };
 
 
