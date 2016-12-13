@@ -51,13 +51,8 @@ Toby::Toby() :
 	init();
     writeBuffer = new BoundedBuffer();
     readBuffer = new BoundedBuffer();
-    done = true;
-    pthread_cond_init(&pollEventSignal,NULL);
-    pthread_mutex_init(&pollingMutex,NULL);
-
-
-
     writePongBuffer = new PingPongBuffer();
+    atCommanderThread = 0;
 }
 
 /**
@@ -93,15 +88,8 @@ int Toby::init()
 #else
 	VDev::init();
 #endif
-    //myTobyDevice = new TobyDevice();
+
     toby_init();
-
-    /*Unfortunately, this is not possible, because if we open the TobyDevice here, which would open the uart,
-    the file descrptor to the uart is only valid in the process(the shell or autostart) which start's toby, but if
-    Mavlink open() the toby itself, the uart descriptor in the tobyDevice isn't valid anymore. It would be possible
-    if we share the file descriptor over an InterProcessCommunication, but uORB can't do that.*/
-    //myTobyDevice = new TobyDevice();
-
     return 0;
 }
 
@@ -110,49 +98,23 @@ int Toby::init()
 
 int	Toby::close(device::file_t *filp){
 
-    /* old function
-    {
-    PX4_INFO("close() is called, we close with %d",uart0_filestream);
-    ::device::CDev::close(filp);
 
-    //for Debugging
-    pid_t x = ::getpid();
-    PX4_INFO("actual thread id : %d",x);
-    // **************************************
+    stopAllThreads();
+    PX4_INFO("Toby::close() is called");
+    if(atCommanderThread != 0){
+        PX4_INFO("join atCommander");
 
-
-    tcflush(uart0_filestream, TCIFLUSH);
-
-    //force a thread to close the uart
-    pthread_t Toby_thread;
-    pthread_create(&Toby_thread, NULL, doClose, NULL);
-
-
-    //int i = set_flowcontrol(uart0_filestream,1);
-    //PX4_INFO("set_flowcontrol returns with %d");
-    //tcgetattr(uart0_filestream, &options);
-    //this->unlock();
-    //px4_close(uart0_filestream);
-
-    //for Debugging
-    PX4_INFO("toby::close() terminate");
-
-    //return value not valid yet!
-    return 0;
+        pthread_join(*atCommanderThread,NULL);
+        PX4_INFO("atCommander terminated");
     }
-    */
 
-    //new function
-    PX4_INFO("Toby::close() is called, we close with");
-    pthread_join(*writerThread,NULL);
-    PX4_INFO("Thread terminated");
 
 
     int closed =  ::device::CDev::close(filp);
-    //TobyDevice closes the uart himself
     delete myTobyDevice;
     myTobyDevice = nullptr;
 
+    PX4_INFO("closed sucessfully");
 
     return closed;
 
@@ -162,24 +124,9 @@ int	Toby::close(device::file_t *filp){
 
 ssize_t	Toby::read(device::file_t *filp, char *buffer, size_t buflen)
 {
-    /* old function
-    {
-    //PX4_INFO("read() is called");
-    ::device::CDev::read(filp,buffer,buflen);
-    int i = px4_read(uart0_filestream,buffer,buflen);
 
-    return i;
-}
-    */
-
-    //new function
-    //PX4_INFO("Toby::read() is called");
-
-    //readBuffer->getString()
-    //return myTobyDevice->read(buffer,buflen);
     int i = 0;
     i = (readBuffer->getString(buffer,buflen));
-   // PX4_INFO("Toby::read() read %d",i);
 
     return i;
 
@@ -187,51 +134,23 @@ ssize_t	Toby::read(device::file_t *filp, char *buffer, size_t buflen)
 
 ssize_t	Toby::write(device::file_t *filp, const char *buffer, size_t buflen){
 
- /* old function:
-  {
-    //todo : effizienter implementieren, but how?
+    //no space, buffer is full
+    /*
+     if(writeBuffer->full()){
+         return 0;
+     }
 
-    //Debugging
-    // PX4_INFO("write() is called");
-
-    int count = 0;
-    if (uart0_filestream != -1)
-    {
- //       PX4_INFO("::write() uart_filstream %d",uart0_filestream);
-
-
-        count = px4_write(uart0_filestream, buffer, buflen);
-        if (count < 0)
-        {
-            //Debugging
-            PX4_INFO("UART TX error");
-        }
-
-    }
-   // close(NULL);
-
-  }
-    */
-    //the new function
-  //  PX4_INFO("Toby::write() is called");
-
+     */
 
      writeBuffer->putString(buffer,buflen);
-     //return writePongBuffer->PutData(buffer,buflen);
-     //sleep(1);
-    // return myTobyDevice->write(buffer,buflen);
      return buflen;
-
-
 
 }
 
 
 off_t Toby::seek(device::file_t *filp, off_t offset, int whence){
-    PX4_INFO("seek() is called");
 
     return ::device::CDev::seek(filp,offset,whence);
-
 }
 
 
@@ -240,45 +159,12 @@ off_t Toby::seek(device::file_t *filp, off_t offset, int whence){
 int
 Toby::ioctl(device::file_t *filp, int cmd, unsigned long arg)
 {
-    //PX4_INFO("ioctl mit cmd:  %d",cmd);
-    //ein versuch :
-    //int i = ::device::CDev::ioctl(filp,cmd,arg);
-    //PX4_INFO("ioctl() return %d",i);
-
-    //ioctl direct to uart
-    //new function
     return myTobyDevice->ioctl(cmd,arg);
-    //old function
-    //return ::ioctl(uart0_filestream,cmd,arg);
+
 }
 
 
 int	Toby::poll(device::file_t *filp, struct pollfd *fds, bool setup){
-
-    /* old Function
-{
-    px4_pollfd_struct_t fds1[1];
-    fds1[0].fd = uart0_filestream;
-    fds1[0].events = POLLIN;
-
-    int poll_return = px4_poll(fds1,1,500);
-    if(poll_return >0){
-        //notify the caller
-        poll_notify(POLLIN);
-        poll_notify_one(fds, POLLIN);
-    }
-
-    //  PX4_INFO("poll() is called with return %d",poll_return);
-}
-*/
-    // new function:
-
-   // int poll_return = 0;
-   // int poll_return = myTobyDevice->poll(fds,setup);
-
-
-
-
 
     if(!readBuffer->empty()){
       //  PX4_INFO("Toby : poll() return 1, data avaiable");
@@ -292,18 +178,6 @@ int	Toby::poll(device::file_t *filp, struct pollfd *fds, bool setup){
         return 0;
     }
 
-/*
-
-    PX4_INFO("poll() is called with return %d",&poll_return);
-
-    if(poll_return > 0){
-
-        poll_notify(POLLIN);
-        poll_notify_one(fds, POLLIN);
-    }
-    return poll_return;
-
-    */
 }
 
 
@@ -312,11 +186,9 @@ int	Toby::poll(device::file_t *filp, struct pollfd *fds, bool setup){
 
 int toby_init(){
 
-    //für Debuggingzwecke
+    //later, we will start the at-commander thread from here
     PX4_INFO("toby_init");
     return 0;
-
-    //todo : initalization toby L210 Module with AT-Command
 
 }
 
@@ -329,7 +201,7 @@ int
 toby_main(int argc, char *argv[])
 {
     /* set to default */
-    const char *device_name = TOBY_DEVICE_PATH;
+    //const char *device_name = TOBY_DEVICE_PATH;
 
     //Load start parameter laden
     int myoptind = 1;
@@ -339,7 +211,7 @@ toby_main(int argc, char *argv[])
     if (argc < 2) {
 
         //stop test reset und status in planung
-        PX4_ERR("unrecognized command, try 'start', 'stop', 'test', 'reset' or 'status'");
+        PX4_ERR("unrecognized command, try 'start', 'stop', 'test', 'delete' or 'status'");
         PX4_ERR("[-d " TOBY_DEVICE_PATH "][-f (for enabling fake)][-s (to enable sat info)]");
         return 1;
     }
@@ -355,16 +227,17 @@ toby_main(int argc, char *argv[])
         }
 
 
-        //"einmalige" Instanzierung
+        //only one instance
         gToby = new Toby();
 
         return 0;
     }
 
 
-    //todo : Alle input parameter handler implementieren
-    // Stubs für andere start-argumente
+
     if (!strcmp(argv[1], "stop")) {
+       if(gToby != nullptr)
+        gToby->stopAllThreads();
     }
 
     /*
@@ -374,9 +247,10 @@ toby_main(int argc, char *argv[])
     }
 
     /*
-     * Reset the driver.
+     * delete the driver.
      */
-    if (!strcmp(argv[1], "reset")) {
+    if (!strcmp(argv[1], "delete")) {
+        delete gToby;
     }
 
     /*
@@ -385,9 +259,7 @@ toby_main(int argc, char *argv[])
     if (!strcmp(argv[1], "status")) {
     }
 
-    if(device_name){
 
-    }
 
 
     //return value is not valid yet
@@ -396,6 +268,10 @@ toby_main(int argc, char *argv[])
 
 }
 
+void Toby::stopAllThreads(void){
+
+    threadExitSignal = true;
+}
 
 int Toby::open(device::file_t *filp){
     PX4_INFO("Toby::open() is called");
@@ -452,6 +328,8 @@ int Toby::open(device::file_t *filp){
     atCommanderParameters.readBuffer = readBuffer;
     atCommanderParameters.writeBuffer= writeBuffer;
     atCommanderParameters.writePongBuffer= writePongBuffer;
+    atCommanderParameters.threadExitSignal = &threadExitSignal;
+    threadExitSignal = false;
 
     atCommanderThread = new pthread_t;
     pthread_create(atCommanderThread, NULL, atCommander::atCommanderStart, (void*)&atCommanderParameters);
@@ -511,6 +389,7 @@ void* Toby::writeWork(void *arg){
 
         if(writePongBuffer->DataAvaiable()){
             readBuffer = (writePongBuffer->getActualReadBuffer());
+        }
            int write_return =  myDevice->write(readBuffer,PingPongBuffer::AbsolutBufferLength);
            if(write_return != PingPongBuffer::AbsolutBufferLength){
                PX4_INFO("ERROR, only write %d instead of 124",write_return);
@@ -521,9 +400,7 @@ void* Toby::writeWork(void *arg){
 
         }
 
-        else{
-            usleep(50);
-        }
+
 
         //write data to hardware
         if(size > 62){
@@ -534,7 +411,6 @@ void* Toby::writeWork(void *arg){
           // variante 1) : myDevice->write(data,size)
 
 
-    }
 
     sleep(2);
 

@@ -12,8 +12,7 @@
 #include "toby.h"
 #include "px4_log.h"
 
-extern pthread_cond_t Toby::pollEventSignal;  // has to be public, otherwise we cant use it from at commander
-extern pthread_mutex_t Toby::pollingMutex;
+
 
 
 atCommander::atCommander(TobyDevice* device, BoundedBuffer* read, BoundedBuffer* write, PingPongBuffer* write2){
@@ -22,6 +21,8 @@ atCommander::atCommander(TobyDevice* device, BoundedBuffer* read, BoundedBuffer*
     readBuffer = read;
     writeBuffer = write;
     pingPongWriteBuffer = write2;
+
+    atReaderThread = 0;
 
     currentState = InitState;
 
@@ -43,6 +44,13 @@ atCommander::atCommander(TobyDevice* device, BoundedBuffer* read, BoundedBuffer*
 }
 atCommander::~atCommander(){
 
+    PX4_INFO("AT-Commander deconstructor is called");
+
+    free(temporaryBuffer);
+    free(temporarySendBuffer);
+    PX4_INFO("free successful");
+
+
 
 }
 
@@ -55,7 +63,7 @@ void atCommander::process(Event e){
             PX4_INFO("InitState");
             if(e == evStart){
 
-                if(tobyAlive(100)==true){
+                if(tobyAlive(10)==true){
 
                     PX4_INFO("InitState: Toby connected");
 
@@ -84,6 +92,10 @@ void atCommander::process(Event e){
                     currentState = ErrorState;
                 }
             }
+
+            if(e == evShutDown){
+                shutDown();
+            }
             break;
         }
 
@@ -107,8 +119,11 @@ void atCommander::process(Event e){
 
             if(strstr(temporaryBuffer, atDirectLinkOk) != 0){
                 sleep(1);
+                //set up readerParameters and start read thread
                 readerParameters.myDevice = myDevice;
                 readerParameters.readBuffer = readBuffer;
+                readerParameters.threadExitSignal = &readerExitSignal;
+                readerExitSignal = false;
                 atReaderThread = new pthread_t();
                 pthread_create(atReaderThread, NULL, atCommander::readWork, (void*)&readerParameters);
 
@@ -137,7 +152,9 @@ void atCommander::process(Event e){
                 }
                 usleep(10000);
                 //pingPongWriteBuffer->GetDataSuccessfull(); // message that we can free the buffer
-
+                if(e == evShutDown){
+                    shutDown();
+                }
 
             }
             break;
@@ -149,6 +166,9 @@ void atCommander::process(Event e){
         case ErrorState :{
             PX4_INFO("ErrorState");
             // error handling, maybe reinitialize32 toby modul?
+            if(e == evShutDown){
+                shutDown();
+            }
             break;
         }
     }
@@ -156,57 +176,55 @@ void atCommander::process(Event e){
 
 void* atCommander::atCommanderStart(void* arg){
 
-    //eventuell in externen Header, saubere Trennung
-    PX4_INFO("AT-Commander says hello");
-
+    PX4_INFO("AT-Commander start");
+    //**************get arguments*************************
     myStruct *arguments = static_cast<myStruct*>(arg);
-
     BoundedBuffer *atWriteBuffer = arguments->writeBuffer;
     BoundedBuffer *atReadBuffer = arguments->readBuffer;
     TobyDevice *atTobyDevice = arguments->myDevice;
     PingPongBuffer *pingPongWriteBuffer = arguments->writePongBuffer;
+    volatile bool* shouldExitSignal = arguments->threadExitSignal;
 
-
-    //usleep(500);
 
     atCommander *atCommanderFSM = new atCommander(atTobyDevice,atReadBuffer,atWriteBuffer,pingPongWriteBuffer);
 
     //sleep(2);
 
-    PX4_INFO("Beginn with transfer");
+    PX4_INFO("Beginn with transfer, should exit : ");
 
-    int poll_return = 0;
+   if(*shouldExitSignal){
+       PX4_INFO("should exit");
+   }
+   else if(*shouldExitSignal == false){
+       PX4_INFO("no exit signal");
+
+   }
+
 
 
     //to start all
     atCommanderFSM->process(evStart);
 
 
-    while(1){
+    while(!*shouldExitSignal){
 
-        while(1){
-            atCommanderFSM->process(evWriteDataAvailable);
-            usleep(10000);
-        }
-        // poll_return = (atTobyDevice->poll(NULL,true));
-        if(poll_return > 0){
-            atCommanderFSM->process(evReadDataAvailable);
-            //*******************************************
-            //read_return =  atTobyDevice->read(temporaryBuffer,62);
-            //atReadBuffer->putString(temporaryBuffer,read_return);
-            //poll_return = (atTobyDevice->poll(NULL,true));
-        }
+            if(!(atWriteBuffer->empty())){ // a bit inconsistent, should be done in FSM, but for actual state of play useful
+                atCommanderFSM->process(evWriteDataAvailable);
+                usleep(10000);
+            }
+            else{
+                usleep(10000);
+            }
 
-        // Nur Senden, wir testen einzig ob wir daten empfangen
-        if(pingPongWriteBuffer->DataAvaiable()){
-            //PX4_INFO("process put evWriteDataAvaiable");
-            atCommanderFSM->process(evWriteDataAvailable);
-        }
-        else{
-            usleep(10000);
-            PX4_INFO("no data avaiable");
-        }
+
+
     }
+
+    PX4_INFO("Thread terminate");
+
+    //has to leave, clear all
+    atCommanderFSM->process(evShutDown);
+    delete atCommanderFSM;
     return NULL;
 }
 
@@ -253,55 +271,16 @@ bool atCommander::tobyAlive(int times){
 
 bool atCommander::initTobyModul(){
 
-    //int         returnPollValue= 0;
-    //int         returnWriteValue= 0;
     int         returnValue= 0;
-
-    //const char* pch = "OK";
     int i = 0;
-    //bool tobyReady =false;
-    //int i   =0;
 
-    /*const char *at_command_send[18]={"ATE0\r",
-                                                        "AT+IPR=57600\r",
-                                                        "AT+CMEE=2\r",
-                                                        "AT+CGMR\r",
-                                                        "ATI9\r",
-                                                        "AT+CPIN=\"4465\"\r",
-                                                        "AT+CLCK=\"SC\",2\r",
-                                                        "AT+CREG=2\r",
-                                                        "AT+CREG=0\r",
-                                                        "AT+CSQ\r",
-                                                        "AT+UREG?\r",
-                                                        "AT+CLCK=\"SC\",2\r",
-                                                        "AT+CGMR\r",
-                                                        "ATI9\r",
-                                                        "at+upsd=0,100,3\r",
-                                                        "at+upsda=0,3\r",                       //dangerous command, may we have to check the activated socket, now we code hard!
-                                                        "at+usocr=6\r",                         // 6 TCP, 17 UDP
-                                                        "at+usoco=0,\"178.196.15.59\",44444\r",
-
-                                                       };*/
-
-    //Anpassung da malloc nicht funktioniert,
-    //damit Funktionen weiterverwendet werden können
-    //char* atCommandSendp[MAX_AT_COMMANDS];
-
-    // for(int j=0; j < MAX_AT_COMMANDS; ++j)
-    // atCommandSendp[j] = &atCommandSendArray[j][0];
-
-    //int numberOfAT=readAtfromSD(atCommandSendp);
-
-    //printAtCommands(atCommandSendp,numberOfAT);
 
     PX4_INFO("Beginn with Initialization");
 
-    //char* stringEnd = '\0';
     while(i < numberOfAt){
         myDevice->write(atCommandSendp[i],getAtCommandLenght(atCommandSendp[i]));
         while(returnValue < 1){
-            //some stupid polling;
-            //PX4_INFO("Polling");
+            //some stupid polling, we wait for answer
             returnValue = myDevice->poll(0);
             usleep(5000);
         }
@@ -320,12 +299,7 @@ bool atCommander::initTobyModul(){
             }
         }
 
-
-        //dirty way to flush the read buffer
-        //strncpy(temporaryBuffer,stringEnd,62);
         bzero(temporaryBuffer,62);
-
-
         returnValue = 0;
     }
     PX4_INFO("sucessfull init");
@@ -418,6 +392,7 @@ void* atCommander::readWork(void *arg){
     threadParameter *arguments = static_cast<threadParameter*>(arg);
     BoundedBuffer* readBuffer = arguments->readBuffer;
     TobyDevice* myDevice = arguments->myDevice;
+    volatile bool* shouldExitSignal = arguments->threadExitSignal;
 
 
 
@@ -432,9 +407,9 @@ void* atCommander::readWork(void *arg){
     }
     int i = 0; // poll result handle
     int u = 0; //size of data received
-    while(1){
+    while(!*shouldExitSignal){
 
-        i = myDevice->poll(0);
+        i = myDevice->poll(10000);
         if(i>0){
             usleep(10000);
             u =  myDevice->read(buffer,64);
@@ -460,4 +435,17 @@ void* atCommander::readWork(void *arg){
 
     return NULL;
 
+}
+
+int atCommander::shutDown(void){
+
+    PX4_INFO("shutDown is called");
+    readerExitSignal = true;
+    if(atReaderThread != 0){
+        pthread_join(*atReaderThread,NULL);
+        PX4_INFO("atReaderThread terminates");
+    }
+
+
+    return 0;
 }

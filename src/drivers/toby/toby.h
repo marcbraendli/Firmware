@@ -25,7 +25,11 @@ struct myStruct //TODO rename
     BoundedBuffer* writeBuffer;  //TODO rename
     BoundedBuffer* readBuffer;
     PingPongBuffer* writePongBuffer;
+    volatile bool* threadExitSignal;
 };
+
+// struct which is used to signaling special events to thread
+
 
 /**
 * @brief Toby Class, damit das interface im /dev/ Ordner von NuttX erscheint
@@ -52,10 +56,11 @@ public:
     int	ioctl(device::file_t *filp, int cmd, unsigned long arg);
     int	poll(device::file_t *filp, struct pollfd *fds, bool setup);
 
-
+    void stopAllThreads(void);
 
     static pthread_cond_t pollEventSignal;  // has to be public, otherwise we cant use it from at commander
     static pthread_mutex_t pollingMutex;
+
 
 private:
 
@@ -67,6 +72,7 @@ private:
 
     pthread_t *atCommanderThread;
     myStruct atCommanderParameters;
+    volatile bool threadExitSignal;
 
     pthread_t *pollingThread;
 
@@ -74,7 +80,6 @@ private:
 
     myStruct workerParameters; //TODO rename
     myStruct readerParameters;
-
 
 
     BoundedBuffer* writeBuffer;
@@ -89,10 +94,6 @@ private:
     static void *writeWork(void *arg);
     static void *readWork(void *arg);
     static void *pollingThreadStart(void *arg);
-
-
-
-    bool done;
 
 
 };

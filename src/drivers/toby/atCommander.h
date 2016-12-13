@@ -22,6 +22,7 @@ struct threadParameter //TODO rename
 {
     TobyDevice* myDevice;
     BoundedBuffer* readBuffer;
+    bool* threadExitSignal;
 
 };
 
@@ -37,7 +38,8 @@ public:
         evWriteDataAvailable,
         evInitOk,
         evInitFail,
-        evStart
+        evStart,
+        evShutDown
     };
 
     /**
@@ -143,6 +145,12 @@ private:
      */
     bool tobyAlive(int times);
 
+    /**
+     * @brief shutDown handles  clear shutdown with the LTE-Modul
+     * @return returns true if successful
+     */
+    int shutDown(void);
+
 
     State currentState;
     BoundedBuffer* readBuffer;
@@ -152,6 +160,7 @@ private:
 
     pthread_t* atReaderThread;
     threadParameter readerParameters;
+    bool readerExitSignal;
 
     int         numberOfAt;
 
