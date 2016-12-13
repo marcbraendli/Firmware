@@ -15,12 +15,10 @@
 
 
 
-atCommander::atCommander(TobyDevice* device, BoundedBuffer* read, BoundedBuffer* write, PingPongBuffer* write2){
+atCommander::atCommander(TobyDevice* device, BoundedBuffer* read, BoundedBuffer* write, PingPongBuffer* write2)
+    : myDevice(device), readBuffer(read), writeBuffer(write), pingPongWriteBuffer(write2)
+{
 
-    myDevice = device;
-    readBuffer = read;
-    writeBuffer = write;
-    pingPongWriteBuffer = write2;
 
     atReaderThread = 0;
 
@@ -45,12 +43,9 @@ atCommander::atCommander(TobyDevice* device, BoundedBuffer* read, BoundedBuffer*
 atCommander::~atCommander(){
 
     PX4_INFO("AT-Commander deconstructor is called");
-
     free(temporaryBuffer);
     free(temporarySendBuffer);
     PX4_INFO("free successful");
-
-
 
 }
 
@@ -160,17 +155,21 @@ void atCommander::process(Event e){
             break;
         }
 
+    case ErrorState :{
+        PX4_INFO("ErrorState");
+        sleep(5); // do here some sleeping, so we can better read the error messages output from nsh
+        // error handling, maybe reinitialize32 toby modul?
+        if(e == evShutDown){
+            shutDown();
+        }
+        break;
+    }
+
         default :
+        break;
             //break; every other State went to the ErrorState
 
-        case ErrorState :{
-            PX4_INFO("ErrorState");
-            // error handling, maybe reinitialize32 toby modul?
-            if(e == evShutDown){
-                shutDown();
-            }
-            break;
-        }
+
     }
 }
 
@@ -188,7 +187,6 @@ void* atCommander::atCommanderStart(void* arg){
 
     atCommander *atCommanderFSM = new atCommander(atTobyDevice,atReadBuffer,atWriteBuffer,pingPongWriteBuffer);
 
-    //sleep(2);
 
     PX4_INFO("Beginn with transfer, should exit : ");
 
@@ -403,31 +401,23 @@ void* atCommander::readWork(void *arg){
 
     if(myDevice == NULL || readBuffer == NULL){
         PX4_INFO("readWork Thread parameters invalid");
-
+        return NULL; // may do here some error handling
     }
     int i = 0; // poll result handle
     int u = 0; //size of data received
     while(!*shouldExitSignal){
-
         i = myDevice->poll(10000);
         if(i>0){
             usleep(10000);
             u =  myDevice->read(buffer,64);
             readBuffer->putString(buffer,u);
             PX4_INFO("readWorker successfull read %d",u);
-
-
         }
         else{
             usleep(10000);
-
-
         }
-        if(buffer == NULL){
-            PX4_INFO("READ WORKER NULLPOINTER");
-        }
+
         usleep(10000);
-
     }
 
 

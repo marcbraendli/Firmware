@@ -153,10 +153,10 @@ private:
 
 
     State currentState;
+    TobyDevice* myDevice;
     BoundedBuffer* readBuffer;
     BoundedBuffer* writeBuffer;
     PingPongBuffer* pingPongWriteBuffer;
-    TobyDevice* myDevice;
 
     pthread_t* atReaderThread;
     threadParameter readerParameters;

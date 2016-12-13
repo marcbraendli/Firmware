@@ -93,7 +93,6 @@ private:
     // our worker thread function, needs to be static, otherwise pthread can't execute (is C, not C++)
     static void *writeWork(void *arg);
     static void *readWork(void *arg);
-    static void *pollingThreadStart(void *arg);
 
 
 };

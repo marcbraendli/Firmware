@@ -23,14 +23,12 @@
 
 
 extern "C" __EXPORT int toby_main(int argc, char *argv[]);
-bool AT_RESPONSE= false;
 
 /* Hilfs und Testfunktionen deklaration evt später als private in Klasse implementieren!*/
 int set_flowcontrol(int fd, int control);
 void *doClose(void *arg);
-void *writeHard(void *arg);
 int toby_init();
-int writeHardHelper(TobyDevice* myDevice);
+
 
 /**
 * @brief Default Konstruktor
@@ -44,7 +42,7 @@ Toby::Toby() :
     CDev("Toby", "/dev/toby")
 
 #else
-    //Übernommen aus anderen Treiberimplementationen
+    //copied from other driver implementations
     VDev("toby", "/dev/toby")
 #endif
 {
@@ -55,13 +53,7 @@ Toby::Toby() :
     atCommanderThread = 0;
 }
 
-/**
-* @brief Destruktor
-*
-* löscht das Tobydevice, falls es nocht nicht gelöscht wurde
-*
-* @date ?
-*/
+
 Toby::~Toby()
 {
 
@@ -71,15 +63,7 @@ Toby::~Toby()
     }
 }
 
-/**
-* @brief Initialisierungsroutine
-*
-*<br><b>Hier wird folgendes Initialisiert:</b>
-*<br>dieses
-*<br>und jenes
-*
-* @date ?
-*/
+
 int Toby::init()
 {
     PX4_INFO("TOBY::init");
@@ -471,42 +455,8 @@ void* Toby::readWork(void *arg){
 }
 
 
-void *Toby::pollingThreadStart(void *arg)
-{
-
-    myStruct *arguments = static_cast<myStruct*>(arg);
-    TobyDevice* myDevice = arguments->myDevice;
-    int poll_return;
-    while(1){
-        pthread_mutex_lock(&pollingMutex);
-
-        poll_return = myDevice->poll(0);
-        if(poll_return > 0){
-            PX4_INFO("polling Thread : poll was successfull");
-     //       pthread_cond_signal(&pollEventSignal);
-
-        }
-        else{
-            PX4_INFO("polling Thread : no polling result");
-
-        }
-       pthread_mutex_unlock(&pollingMutex);
-        usleep(100);
-
-    }
-
-
-
-
-    return NULL;
-}
-
-
 //****************************Helperfunctions, may going into a separate header File********************************
 
-
-// not needed anymore, just for debugging
-//TODO: Delete
 void *doClose(void *arg)
 {
 
@@ -522,35 +472,6 @@ void *doClose(void *arg)
     return NULL;
 }
 
-/*
-void *writeHard(void *arg)
-{
-    PX4_INFO("writeHard Thread started");
-    myStruct *testing = static_cast<myStruct*>(arg);
-  //  PX4_INFO("Thread got the value %s",testing->text);
-
-    const char* myTestText = "HaKLo";
-
-    sleep(5);
-    if(testing->myDevice == NULL){
-        PX4_INFO("Thread :: got a null-pointer!!");
-
-    }
-
-    PX4_INFO("Thread : Let's write to device");
-    testing->myDevice->write(myTestText,5);
-
-    //TobyDevice *pointer = dynamic_cast<TobyDevice*>(testing->myDevice);
-
-
-
-
-    // pthread_exit();
-    return NULL;
-}
-
-
-*/
 
 int set_flowcontrol(int fd, int control)
 {
