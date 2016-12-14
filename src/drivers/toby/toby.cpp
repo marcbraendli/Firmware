@@ -17,6 +17,8 @@
 #include <fcntl.h>
 
 #include "drivers/toby/tobyDevice.h"
+#include "drivers/toby/tobyDeviceUart.h"
+
 #include "drivers/toby/atCommander.h"
 #include "drivers/drv_toby.h"
 #include "toby.h"
@@ -27,7 +29,6 @@ extern "C" __EXPORT int toby_main(int argc, char *argv[]);
 /* Hilfs und Testfunktionen deklaration evt später als private in Klasse implementieren!*/
 int set_flowcontrol(int fd, int control);
 void *doClose(void *arg);
-int toby_init();
 
 
 /**
@@ -73,7 +74,6 @@ int Toby::init()
 	VDev::init();
 #endif
 
-    toby_init();
     return 0;
 }
 
@@ -84,16 +84,6 @@ int	Toby::close(device::file_t *filp){
 
 
     stopAllThreads();
-    PX4_INFO("Toby::close() is called");
-    if(atCommanderThread != 0){
-        PX4_INFO("join atCommander");
-
-        pthread_join(*atCommanderThread,NULL);
-        PX4_INFO("atCommander terminated");
-    }
-
-
-
     int closed =  ::device::CDev::close(filp);
     delete myTobyDevice;
     myTobyDevice = nullptr;
@@ -118,17 +108,16 @@ ssize_t	Toby::read(device::file_t *filp, char *buffer, size_t buflen)
 
 ssize_t	Toby::write(device::file_t *filp, const char *buffer, size_t buflen){
 
-    //no space, buffer is full
+    //no space, buffer is full -> does not work, communication lost
+    //however we lock the mavlink-thread in buffer
     /*
      if(writeBuffer->full()){
          return 0;
      }
-
      */
 
      writeBuffer->putString(buffer,buflen);
      return buflen;
-
 }
 
 
@@ -151,7 +140,6 @@ Toby::ioctl(device::file_t *filp, int cmd, unsigned long arg)
 int	Toby::poll(device::file_t *filp, struct pollfd *fds, bool setup){
 
     if(!readBuffer->empty()){
-      //  PX4_INFO("Toby : poll() return 1, data avaiable");
         poll_notify(POLLIN);
         poll_notify_one(fds, POLLIN);
         return  1;
@@ -164,17 +152,6 @@ int	Toby::poll(device::file_t *filp, struct pollfd *fds, bool setup){
 
 }
 
-
-
-
-
-int toby_init(){
-
-    //later, we will start the at-commander thread from here
-    PX4_INFO("toby_init");
-    return 0;
-
-}
 
 namespace
 {
@@ -218,6 +195,10 @@ toby_main(int argc, char *argv[])
     }
 
 
+    /** This is only needed because mavlink don't close his comm-channel
+     *  so Toby:close is never called
+     *
+     */
 
     if (!strcmp(argv[1], "stop")) {
        if(gToby != nullptr)
@@ -231,20 +212,23 @@ toby_main(int argc, char *argv[])
     }
 
     /*
-     * delete the driver.
+     * delete the driver. Be sure what you do, so if mavlink is allready running,
+     * it will crash!
      */
     if (!strcmp(argv[1], "delete")) {
-        delete gToby;
+        if(gToby != nullptr){
+            delete gToby;
+            gToby = nullptr;
+        }
     }
 
     /*
      * Print driver status.
      */
     if (!strcmp(argv[1], "status")) {
+        if(gToby != nullptr)
+         gToby->printStatus();
     }
-
-
-
 
     //return value is not valid yet
     return 0;
@@ -255,6 +239,24 @@ toby_main(int argc, char *argv[])
 void Toby::stopAllThreads(void){
 
     threadExitSignal = true;
+    if(atCommanderThread != nullptr){
+         pthread_join(*atCommanderThread,NULL);
+         PX4_INFO("Stop successful");
+    }
+
+
+
+
+}
+
+void Toby::printStatus(void){
+    // may we could print here some net strenght, connection details of toby l210 etc
+    if(threadExitSignal){
+        PX4_INFO("Toby-Status : Toby L210 is stopped");
+    }
+    else{
+        PX4_INFO("Toby-Status : Toby L210 is currently running");
+    }
 }
 
 int Toby::open(device::file_t *filp){
@@ -271,7 +273,7 @@ int Toby::open(device::file_t *filp){
     //open TobyDevice, is not possible in an other way
 
     //
-    this->myTobyDevice = new TobyDevice();
+    this->myTobyDevice = new TobyDeviceUart();
 
     if(this->myTobyDevice == NULL){
         PX4_INFO("ERROR myTobyDevice is a NULL-Pointer!!!!");

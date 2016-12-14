@@ -12,6 +12,8 @@
 #include <drivers/device/device_nuttx.h>
 #include <termios.h>
 #include "tobyDevice.h"
+#include "tobyDeviceUart.h"
+
 #include "boundedBuffer.h"
 #include "pingPongBuffer.h"
 
@@ -26,6 +28,7 @@ struct myStruct //TODO rename
     BoundedBuffer* readBuffer;
     PingPongBuffer* writePongBuffer;
     volatile bool* threadExitSignal;
+    volatile bool* threadStartCommSignal;
 };
 
 // struct which is used to signaling special events to thread
@@ -56,15 +59,14 @@ public:
     int	ioctl(device::file_t *filp, int cmd, unsigned long arg);
     int	poll(device::file_t *filp, struct pollfd *fds, bool setup);
 
+    void printStatus(void);
     void stopAllThreads(void);
 
-    static pthread_cond_t pollEventSignal;  // has to be public, otherwise we cant use it from at commander
-    static pthread_mutex_t pollingMutex;
 
 
 private:
 
-    TobyDevice* myTobyDevice;
+    TobyDeviceUart* myTobyDevice;
 
     struct termios options= {};
     pthread_t *writerThread;

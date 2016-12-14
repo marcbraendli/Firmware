@@ -12,33 +12,29 @@
 
 #include <fcntl.h>
 
-
+/**
+ * @brief The TobyDevice class is a interface for the Toby-L210
+ */
 
 
 class TobyDevice
 
 {
 public:
-    TobyDevice();
-    virtual ~TobyDevice();
+    TobyDevice(){
 
+    }
 
-    ssize_t	read(char *buffer, size_t buflen);
-    ssize_t	write(const char *buffer, size_t buflen);
+    virtual ~TobyDevice(){
 
-    static void *writeToUart(void *arg);
+    }
 
-
-
-    virtual int ioctl(int cmd, unsigned long arg);
-    virtual int	poll(int timeout);
+    virtual ssize_t	read(char *buffer, size_t buflen) = 0;
+    virtual ssize_t	write(const char *buffer, size_t buflen) = 0;
+    virtual int ioctl(int cmd, unsigned long arg)= 0;
+    virtual int	poll(int timeout) = 0;
 
 private:
-    int uart0_filestream;
-
-    struct termios options= {};
-    pthread_mutex_t lock;
-
 
 
 };

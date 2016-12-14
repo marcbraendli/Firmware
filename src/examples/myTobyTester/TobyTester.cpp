@@ -317,7 +317,7 @@ void testTobyDevice(){
 
 
 
-    TobyDevice *myDevice = new TobyDevice();
+    TobyDeviceUart *myDevice = new TobyDeviceUart();
     myDevice->write(tx_buffer,13);
     delete myDevice;
 }

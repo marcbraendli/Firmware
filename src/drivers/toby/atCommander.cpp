@@ -15,13 +15,12 @@
 
 
 
-atCommander::atCommander(TobyDevice* device, BoundedBuffer* read, BoundedBuffer* write, PingPongBuffer* write2)
-    : myDevice(device), readBuffer(read), writeBuffer(write), pingPongWriteBuffer(write2)
+atCommander::atCommander(TobyDevice* tobyDevice, BoundedBuffer* read, BoundedBuffer* write, PingPongBuffer* write2)
+    : currentState (InitState), moduleState(ATCommandMode), myDevice(tobyDevice), readBuffer(read), writeBuffer(write), pingPongWriteBuffer(write2)
 {
 
 
     atReaderThread = 0;
-
     currentState = InitState;
 
     temporaryBuffer = (char*)malloc(62*sizeof(char));
@@ -53,48 +52,51 @@ void atCommander::process(Event e){
 
     switch(currentState){
 
-        case InitState:{
+    case InitState:{
 
-            PX4_INFO("InitState");
-            if(e == evStart){
+        PX4_INFO("InitState");
+        if(e == evInit ){
 
-                if(tobyAlive(10)==true){
+            if(tobyAlive(10)==true){
 
-                    PX4_INFO("InitState: Toby connected");
+                PX4_INFO("InitState: Toby connected");
 
-                    if(readAtfromSD()>0){
+                if(readAtfromSD()>0){
 
-                        PX4_INFO("InitState: Read AT-Commands from SD card");
+                    PX4_INFO("InitState: Read AT-Commands from SD card");
 
-                        printAtCommands();
+                    printAtCommands();
 
-                        if(initTobyModul()==true){
+                    if(initTobyModul()==true){
 
-                            PX4_INFO("InitState: Toby initialized");
+                        PX4_INFO("InitState: Toby initialized");
 
-                            currentState = SetupState;
+                        currentState = SetupState;
 
-                        }else{
-                            PX4_INFO("InitState: Toby NOT initialized");
-                            currentState = ErrorState;
-                        }
                     }else{
-                        PX4_INFO("InitState: No SD-Card or corrupted");
+                        PX4_INFO("InitState: Toby initialisation failed");
                         currentState = ErrorState;
                     }
                 }else{
-                    PX4_INFO("InitState: Toby NOT connected");
+                    PX4_INFO("InitState: No SD-Card or corrupted");
                     currentState = ErrorState;
                 }
+            }else{
+                PX4_INFO("InitState: Toby NOT connected");
+                currentState = ErrorState;
             }
-
-            if(e == evShutDown){
-                shutDown();
-            }
-            break;
         }
 
-        case SetupState :{
+        else if(e == evShutDown){
+            shutDown();
+        }
+        break;
+    }
+
+    case SetupState :{
+
+
+        if(e == evStart){
 
             PX4_INFO("ReadyState");
             PX4_INFO("Direct Link Connection");
@@ -103,8 +105,9 @@ void atCommander::process(Event e){
             int poll_return = 0;
             while(poll_return < 1){
                 //some stupid polling;
-                poll_return = myDevice->poll(0);
+                poll_return = myDevice->poll(100);
                 usleep(100000);
+               //todo : timeout
             }
 
             bzero(temporaryBuffer,62);
@@ -114,6 +117,7 @@ void atCommander::process(Event e){
 
             if(strstr(temporaryBuffer, atDirectLinkOk) != 0){
                 sleep(1);
+                moduleState = DirectLinkMode; // better error-handling
                 //set up readerParameters and start read thread
                 readerParameters.myDevice = myDevice;
                 readerParameters.readBuffer = readBuffer;
@@ -121,53 +125,56 @@ void atCommander::process(Event e){
                 readerExitSignal = false;
                 atReaderThread = new pthread_t();
                 pthread_create(atReaderThread, NULL, atCommander::readWork, (void*)&readerParameters);
-
                 currentState=WriteState;
 
-            }else{
+            }
+            else{
                 currentState = SetupState;
             }
-
-            break;
         }
 
-        case WriteState :{
-            //this don't work yet -----------------------------------------------------------------
+        break;
+    }
 
-            //-------------------------------------------------------------------------------------
+    case WriteState :{
 
-            if(e == evWriteDataAvailable){
-                int buffer_return = writeBuffer->getString(temporarySendBuffer,128);
+        if(e == evWriteDataAvailable){
+            int buffer_return = writeBuffer->getString(temporarySendBuffer,128);
 
-                int write_return = myDevice->write(temporarySendBuffer,buffer_return); //the number depends on the buffer deepness!!!!
-                PX4_INFO("successfull write %d",write_return);
+            int write_return = myDevice->write(temporarySendBuffer,buffer_return); //the number depends on the buffer deepness!!!!
+            PX4_INFO("successfull write %d",write_return);
 
-                if(write_return != buffer_return){
-                    PX4_INFO("Error writing Data to UART");
-                }
-                usleep(10000);
-                //pingPongWriteBuffer->GetDataSuccessfull(); // message that we can free the buffer
-                if(e == evShutDown){
-                    shutDown();
-                }
-
+            if(write_return != buffer_return){
+                PX4_INFO("Error writing Data to UART");
             }
-            break;
+            usleep(10000);
+
+
         }
+        else if(e == evShutDown){
+            PX4_INFO("Shutdown");
+            shutDown();
+        }
+
+        break;
+    }
 
     case ErrorState :{
         PX4_INFO("ErrorState");
         sleep(5); // do here some sleeping, so we can better read the error messages output from nsh
         // error handling, maybe reinitialize32 toby modul?
-        if(e == evShutDown){
-            shutDown();
-        }
+
+        //input-action
+        shutdownModule();
+
+        //we try to reinitialize the LTE-Module -> no error counting yet
+        currentState = InitState;
         break;
     }
 
-        default :
+    default :
         break;
-            //break; every other State went to the ErrorState
+        //break; every other State went to the ErrorState
 
 
     }
@@ -190,29 +197,33 @@ void* atCommander::atCommanderStart(void* arg){
 
     PX4_INFO("Beginn with transfer, should exit : ");
 
-   if(*shouldExitSignal){
-       PX4_INFO("should exit");
-   }
-   else if(*shouldExitSignal == false){
-       PX4_INFO("no exit signal");
+    if(*shouldExitSignal){
+        PX4_INFO("should exit");
+    }
+    else if(*shouldExitSignal == false){
+        PX4_INFO("no exit signal");
 
-   }
+    }
 
+    atCommanderFSM->process(evInit);
 
-
-    //to start all
     atCommanderFSM->process(evStart);
+
+
+    PX4_INFO("Sleep");
+    sleep(10);
+
 
 
     while(!*shouldExitSignal){
 
-            if(!(atWriteBuffer->empty())){ // a bit inconsistent, should be done in FSM, but for actual state of play useful
-                atCommanderFSM->process(evWriteDataAvailable);
-                usleep(1000);
-            }
-            else{
-                usleep(1000);
-            }
+        if(!(atWriteBuffer->empty())){ // a bit inconsistent, should be done in FSM, but for actual state of play useful
+            atCommanderFSM->process(evWriteDataAvailable);
+            usleep(1000);
+        }
+        else{
+            usleep(1000);
+        }
 
 
 
@@ -223,7 +234,7 @@ void* atCommander::atCommanderStart(void* arg){
     //has to leave, clear all
     atCommanderFSM->process(evShutDown);
     delete atCommanderFSM;
-    return NULL;
+    return nullptr;
 }
 
 bool atCommander::tobyAlive(int times){
@@ -257,7 +268,7 @@ bool atCommander::tobyAlive(int times){
                 bzero(temporaryBuffer,62);
             }
         }else{
-           sleep(1);
+            sleep(1);
         }
         ++i;
     }
@@ -274,8 +285,10 @@ bool atCommander::initTobyModul(){
 
 
     PX4_INFO("Beginn with Initialization");
+    int timeout = 0;
+    bool success = true;
 
-    while(i < numberOfAt){
+    while((i < numberOfAt) & success){
         myDevice->write(atCommandSendp[i],getAtCommandLenght(atCommandSendp[i]));
         while(returnValue < 1){
             //some stupid polling, we wait for answer
@@ -294,15 +307,22 @@ bool atCommander::initTobyModul(){
             PX4_INFO("Command failed: %s", atCommandSendp[i]);
             if(i > 0){
                 --i; //we try the last command befor, because if we can't connect to static ip, it closes the socket automatically and we need to reopen
+
+                if(timeout > 10){ //check 10 times otherwise we failed
+                    success = false;
+                }
+
+                ++timeout; // count the times it failed
             }
         }
 
         bzero(temporaryBuffer,62);
         returnValue = 0;
     }
+
     PX4_INFO("sucessfull init");
 
-    return true;
+    return success;
 
 }
 
@@ -356,9 +376,9 @@ bool atCommander::readAtfromSD()
             inputbufferstand++;
             inputbuffer[inputbufferstand]=string_end; //wirklich Notwendig ?
 
-            //Speicherplatz konnte nicht mit malloc alloziert werden! Griff auf ungültigen Speicherbereich zu.
-            //atcommandbuffer[atcommandbufferstand] =(char*) malloc(20);
-            //assert(atcommandbuffer[atcommandbufferstand]!=0);
+            /*There was no possibilty to allocate space for at-commands using malloc
+             * didn't work
+             */
             strcpy(atCommandSendp[atcommandbufferstand],inputbuffer);
 
             inputbufferstand=0;
@@ -405,7 +425,7 @@ void* atCommander::readWork(void *arg){
     }
     int i = 0; // poll result handle
     int u = 0; //size of data received
-    while(!*shouldExitSignal){
+    while(!(*shouldExitSignal)){
         i = myDevice->poll(0);
         if(i>0){
             usleep(10000);
@@ -438,4 +458,19 @@ int atCommander::shutDown(void){
 
 
     return 0;
+}
+
+
+bool atCommander::shutdownModule(){
+
+    if(moduleState == DirectLinkMode){
+        // actually we don't know how we can reset the module from the direct link mode
+        return false;
+    }
+
+    if(moduleState == ATCommandMode){
+        myDevice->write()
+    }
+
+    return true;
 }

@@ -14,6 +14,8 @@
 #include "pingPongBuffer.h"
 
 #include "tobyDevice.h"
+#include "tobyDeviceUart.h"
+
 
 //for readAtfromSD function
 #define SD_CARD_PATH       "/fs/microsd/toby/at-inits.txt"
@@ -22,7 +24,7 @@ struct threadParameter //TODO rename
 {
     TobyDevice* myDevice;
     BoundedBuffer* readBuffer;
-    bool* threadExitSignal;
+    volatile bool* threadExitSignal;
 
 };
 
@@ -39,6 +41,7 @@ public:
         evInitOk,
         evInitFail,
         evStart,
+        evInit,
         evShutDown
     };
 
@@ -48,7 +51,7 @@ public:
      * @param
      * @return
      */
-    atCommander(TobyDevice* device, BoundedBuffer* read, BoundedBuffer* write, PingPongBuffer* write2);
+    atCommander(TobyDevice* tobyDevice, BoundedBuffer* read, BoundedBuffer* write, PingPongBuffer* write2);
 
     /**
      * @brief
@@ -77,13 +80,15 @@ public:
 private:
     //States for the FSM
     enum State {
-        StopState,
         InitState,
-        WaitState,
-        ReadState,
         WriteState,
         ErrorState,
         SetupState
+    };
+
+    enum ModuleState {
+        DirectLinkMode,
+        ATCommandMode
     };
     //Enumeration for readAtfromSD function
     enum{
@@ -92,6 +97,8 @@ private:
         READ_BUFFER_LENGHT =100
     };
 
+    //we don't want that this object could be copied
+    atCommander(atCommander& other);
 
     /**
      * @brief Prints the AT-Commands from the parameter
@@ -151,8 +158,15 @@ private:
      */
     int shutDown(void);
 
+    /**
+     * @brief shutdownModule does shutDown the LTE-Module, preparing for reinitializing
+     * @return true if successful, false if failed
+     */
+    bool shutdownModule(void);
+
 
     State currentState;
+    ModuleState moduleState;
     TobyDevice* myDevice;
     BoundedBuffer* readBuffer;
     BoundedBuffer* writeBuffer;
@@ -160,7 +174,7 @@ private:
 
     pthread_t* atReaderThread;
     threadParameter readerParameters;
-    bool readerExitSignal;
+    volatile bool readerExitSignal;
 
     int         numberOfAt;
 

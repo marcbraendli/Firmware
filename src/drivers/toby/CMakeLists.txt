@@ -40,6 +40,8 @@ px4_add_module(
 		toby.h
                 tobyDevice.cpp
                 tobyDevice.h
+		tobyDeviceUart.cpp
+                tobyDeviceUart.h
 		boundedBuffer.cpp
 		boundedBuffer.h
 		atCommander.cpp

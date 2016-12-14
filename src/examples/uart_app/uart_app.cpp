@@ -20,6 +20,8 @@
 #include <stdlib.h> //für fopen()!
 
 #include <./drivers/toby/tobyDevice.h>
+#include <./drivers/toby/tobyDeviceUart.h>
+
 
 //for readATfromSD
 #define MAX_INPUT_LENGTH	20
@@ -43,7 +45,7 @@ unsigned char at_buffer[2][MAX_LINE_NUMBER][MAX_INPUT_LENGTH]={};
 int uart_app_main(int argc, char *argv[])
 {
 
-    TobyDevice* myToby =new TobyDevice();
+    TobyDeviceUart* myToby =new TobyDeviceUart();
 
 
     PX4_INFO("This is a Uart Test App");
