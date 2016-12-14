@@ -208,10 +208,10 @@ void* atCommander::atCommanderStart(void* arg){
 
             if(!(atWriteBuffer->empty())){ // a bit inconsistent, should be done in FSM, but for actual state of play useful
                 atCommanderFSM->process(evWriteDataAvailable);
-                usleep(10000);
+                usleep(1000);
             }
             else{
-                usleep(10000);
+                usleep(1000);
             }
 
 
@@ -321,10 +321,10 @@ int atCommander::getAtCommandLenght(const char* at_command)
 
 void atCommander::printAtCommands()
 {
-    PX4_INFO("%s beinhaltet %d Zeilen",SD_CARD_PATH,numberOfAt);
+    PX4_INFO("%s contents %d rows",SD_CARD_PATH,numberOfAt);
     for(int j=0 ; j < numberOfAt ; j++)
     {
-        PX4_INFO("Inhalt %d %s",j ,atCommandSendp[j]);
+        PX4_INFO("content %d %s",j ,atCommandSendp[j]);
     }
 }
 
@@ -406,7 +406,7 @@ void* atCommander::readWork(void *arg){
     int i = 0; // poll result handle
     int u = 0; //size of data received
     while(!*shouldExitSignal){
-        i = myDevice->poll(10000);
+        i = myDevice->poll(0);
         if(i>0){
             usleep(10000);
             u =  myDevice->read(buffer,64);
