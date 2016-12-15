@@ -18,15 +18,15 @@ enum{
 
 
 
-atCommander::atCommander(TobyDevice* tobyDevice, TobyRingBuffer* read, TobyRingBuffer* write, PingPongBuffer* write2)
-    : currentState (InitState), moduleState(ATCommandMode), myDevice(tobyDevice), readBuffer(read), writeBuffer(write), pingPongWriteBuffer(write2)
+atCommander::atCommander(TobyDevice* tobyDevice, TobyRingBuffer* read, TobyRingBuffer* write, PingPongBuffer* write2, TobyDataPipe* write3, TobyDataPipe* read3)
+    : currentState (InitState), moduleState(ATCommandMode), myDevice(tobyDevice), readBuffer(read), writeBuffer(write), pingPongWriteBuffer(write2), dataPipeWriteBuffer(write3), dataPipeReadBuffer(read3)
 {
 
 
     atReaderThread = 0;
     currentState = InitState;
 
-    temporaryBuffer = (char*)malloc(62*sizeof(char));
+    temporaryBuffer = (char*)malloc(72*sizeof(char));
     temporarySendBuffer = (char*)malloc(62*sizeof(char));
 
     //Initialize const strings for sending and checking
@@ -129,6 +129,8 @@ void atCommander::process(Event e){
     case WriteState :{
 
         if(e == evWriteDataAvailable){
+
+            /*
             char* data;
             int buffer_return = writeBuffer->getActualReadBuffer(data);
 
@@ -140,7 +142,15 @@ void atCommander::process(Event e){
             }
             writeBuffer->gotDataSuccessful();
             usleep(10000);
+            */
 
+            int buffer_return = dataPipeWriteBuffer->getItem(temporaryBuffer,72);
+            int write_return = myDevice->write(temporaryBuffer,buffer_return);
+
+            if(write_return != buffer_return){
+                PX4_INFO("Error writing Data to UART"); // we lost data
+            }
+            usleep(10000);
 
         }
         else if(e == evShutDown){
@@ -182,11 +192,16 @@ void* atCommander::atCommanderStart(void* arg){
     TobyRingBuffer *atWriteBuffer = arguments->writeBuffer;
     TobyRingBuffer *atReadBuffer = arguments->readBuffer;
     TobyDevice *atTobyDevice = arguments->myDevice;
+    // exctract for trying out some special buffer's
     PingPongBuffer *pingPongWriteBuffer = arguments->writePongBuffer;
+    TobyDataPipe *dataPipeWriteBuffer = arguments->writeDataPipeBuffer;
+    TobyDataPipe *dataPipeReadBuffer = arguments->readDataPipeBuffer;
+
+
     volatile bool* shouldExitSignal = arguments->threadExitSignal;
 
 
-    atCommander *atCommanderFSM = new atCommander(atTobyDevice,atReadBuffer,atWriteBuffer,pingPongWriteBuffer);
+    atCommander *atCommanderFSM = new atCommander(atTobyDevice,atReadBuffer,atWriteBuffer,pingPongWriteBuffer, dataPipeWriteBuffer, dataPipeReadBuffer);
 
 
     PX4_INFO("Beginn with transfer, should exit : ");
@@ -207,6 +222,19 @@ void* atCommander::atCommanderStart(void* arg){
     PX4_INFO("Sleep");
     sleep(10);
 
+    while(!*shouldExitSignal){
+
+        if(!(dataPipeWriteBuffer->isEmpty())){ // a bit inconsistent, should be done in FSM, but for actual state of play useful
+            atCommanderFSM->process(evWriteDataAvailable);
+            usleep(1000);
+        }
+        else{
+            usleep(1000);
+        }
+
+
+
+    }
 
 
     while(!*shouldExitSignal){
@@ -351,6 +379,7 @@ bool atCommander::setReaderThread(void){
     readerParameters.readBuffer = readBuffer;
     readerParameters.threadExitSignal = &readerExitSignal;
     readerExitSignal = false;
+    readerParameters.readPipeBuffer = dataPipeReadBuffer;
     atReaderThread = new pthread_t();
     int ret = pthread_create(atReaderThread, NULL, atCommander::readWork, (void*)&readerParameters);
     if(ret){
@@ -446,6 +475,7 @@ void* atCommander::readWork(void *arg){
     //extract arguments :
     threadParameter *arguments = static_cast<threadParameter*>(arg);
     TobyRingBuffer* readBuffer = arguments->readBuffer;
+    TobyDataPipe* readPipeBuffer = arguments->readPipeBuffer;
     TobyDevice* myDevice = arguments->myDevice;
     volatile bool* shouldExitSignal = arguments->threadExitSignal;
 
@@ -462,6 +492,36 @@ void* atCommander::readWork(void *arg){
     }
     int i = 0; // poll result handle
     int u = 0; //size of data received
+
+    int put_return = 0;
+    int space = 0;
+
+
+    while(!(*shouldExitSignal)){
+        i = myDevice->poll(0);
+        if(i>0){
+            usleep(20000);
+            space = readPipeBuffer->getSpace();
+            if(space > 0){
+                u =  myDevice->read(buffer,space);
+                put_return = readPipeBuffer->putItem(buffer,u);
+                if(put_return < u){
+                 //   PX4_INFO("ERROR no space");
+                }
+                else{
+                    PX4_INFO("Successful read of %d",put_return);
+                }
+            }
+
+        }
+        else{
+            usleep(10000);
+        }
+
+        usleep(10000);
+    }
+
+
     while(!(*shouldExitSignal)){
         i = myDevice->poll(0);
         if(i>0){
@@ -500,12 +560,12 @@ int atCommander::shutDown(void){
 
 bool atCommander::shutdownModule(){
 
-
+    PX4_INFO("Shutdown LTE-Module");
     if(moduleState == DirectLinkMode){
-        myDevice->write(atExitDirectLink, getAtCommandLenght(atExitDirectLink));
+       // myDevice->write(atExitDirectLink, getAtCommandLenght(atExitDirectLink));
 
     }
-    myDevice->write(atResetCommand, getAtCommandLenght(atResetCommand));
+   // myDevice->write(atResetCommand, getAtCommandLenght(atResetCommand));
 
     return false;
 }

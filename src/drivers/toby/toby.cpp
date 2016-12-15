@@ -41,6 +41,8 @@ Toby::Toby() :
     writeBuffer = new TobyRingBuffer(10,158);
     readBuffer = new TobyRingBuffer(10,158);
     writePongBuffer = new PingPongBuffer();
+    writeDataPipe = new TobyDataPipe(256);
+    readDataPipe = new TobyDataPipe(256);
     atCommanderThread = nullptr;
 }
 
@@ -94,7 +96,10 @@ ssize_t	Toby::read(device::file_t *filp, char *buffer, size_t buflen)
 {
 
     int i = 0;
-    i = (readBuffer->getString(buffer,buflen));
+    i = readDataPipe->getItem(buffer,buflen);
+  //  i = (readBuffer->getString(buffer,buflen));
+
+    PX4_INFO("Mavlink reads succesful %d",i);
 
     return i;
 
@@ -110,7 +115,8 @@ ssize_t	Toby::write(device::file_t *filp, const char *buffer, size_t buflen){
      }
      */
 
-     writeBuffer->putString(buffer,buflen);
+     //writeBuffer->putString(buffer,buflen);
+     writeDataPipe->putItem(buffer,buflen);
      return buflen;
 }
 
@@ -133,6 +139,23 @@ Toby::ioctl(device::file_t *filp, int cmd, unsigned long arg)
 
 int	Toby::poll(device::file_t *filp, struct pollfd *fds, bool setup){
 
+
+    if(!(readDataPipe->isEmpty())){
+        poll_notify(POLLIN);
+        poll_notify_one(fds, POLLIN);
+        PX4_INFO("Mavlink polls successful");
+        return  1;
+
+    }
+
+    else{
+        PX4_INFO("Mavlink poll fails");
+
+        return 0;
+    }
+
+
+/*
     if(!readBuffer->empty()){
         poll_notify(POLLIN);
         poll_notify_one(fds, POLLIN);
@@ -143,6 +166,8 @@ int	Toby::poll(device::file_t *filp, struct pollfd *fds, bool setup){
     else{
         return 0;
     }
+
+    */
 
 }
 
@@ -301,6 +326,8 @@ int Toby::open(device::file_t *filp){
     atCommanderParameters.readBuffer = readBuffer;
     atCommanderParameters.writeBuffer= writeBuffer;
     atCommanderParameters.writePongBuffer= writePongBuffer;
+    atCommanderParameters.writeDataPipeBuffer = writeDataPipe;
+    atCommanderParameters.readDataPipeBuffer = readDataPipe;
     atCommanderParameters.threadExitSignal = &threadExitSignal;
     threadExitSignal = false;
 

@@ -12,26 +12,34 @@ enum{
 	BUFLENGTH = 12,
 };
 
+//dirty initialisation
+static pthread_mutex_t dataPipeLock = PTHREAD_MUTEX_INITIALIZER;
 
 
-DataPipe::DataPipe(int inBuflength) : buflength(inBuflength), head(0),tail(0),space(buflength){
+TobyDataPipe::TobyDataPipe(int inBuflength) : buflength(inBuflength), head(0),tail(0),space(buflength){
     myBuffer = (char*)malloc(buflength*sizeof(char));
+
+    pthread_cond_init(&pipeIsFull,NULL);
+    pthread_cond_init(&pipeIsEmpty,NULL);
 
 }
 
-DataPipe::~DataPipe() {
+TobyDataPipe::~TobyDataPipe() {
 	// TODO Auto-generated destructor stub
 }
 
-int DataPipe::getItem(char* buffer, int buflen){
+int TobyDataPipe::getItem(char* buffer, int buflen){
+  //  pthread_mutex_lock(&dataPipeLock);
 
-	if(space == buflength){
+
+    int localSpace = space; // save first
+    if(localSpace == buflength){
 		return 0;
 	}
 
 	int numToCpy = 0;
-	if((buflength - space) <= buflen){
-		numToCpy = buflength -  space;
+    if((buflength - localSpace) <= buflen){
+        numToCpy = buflength -  localSpace;
 	}
 	else{
 		numToCpy = buflen;
@@ -48,21 +56,24 @@ int DataPipe::getItem(char* buffer, int buflen){
 		tail = numToCpy - (delta);
 	}
 
-	space += numToCpy;
+   // space += numToCpy;
+    updateSpace(numToCpy);
 
+  //  pthread_mutex_unlock(&dataPipeLock);
 	return numToCpy;
 }
 
-int DataPipe::putItem(const char* val, size_t size){
+int TobyDataPipe::putItem(const char* val, size_t size){
 
-	//no space available
-	if(space < size){
+    int localSpace = space; // save first
+
+    if(localSpace < size){
 		return 0;
 	}
 
 	int numToCpy;
-	if(size >= space){
-		numToCpy = space;
+    if(size >= localSpace){
+        numToCpy = localSpace;
 	}
 	else{
 		numToCpy = size;
@@ -78,9 +89,14 @@ int DataPipe::putItem(const char* val, size_t size){
 		memcpy(&myBuffer[0], &val[delta],numToCpy - (delta));
 		head = numToCpy - (delta);
 	}
-	space -= numToCpy;
-
+    updateSpace(-numToCpy);
 	return numToCpy;
+}
+
+void TobyDataPipe::updateSpace(int update){
+    pthread_mutex_lock(&dataPipeLock);
+    space += update;
+    pthread_mutex_unlock(&dataPipeLock);
 }
 
 

@@ -16,6 +16,8 @@
 
 #include "tobyRingBuffer.h"
 #include "pingPongBuffer.h"
+#include "tobyDataPipe.h"
+
 
 
 
@@ -26,7 +28,10 @@ struct myStruct //TODO rename
     TobyDevice* myDevice;
     TobyRingBuffer* writeBuffer;
     TobyRingBuffer* readBuffer;
-    PingPongBuffer* writePongBuffer;
+    PingPongBuffer* writePongBuffer;        // these are just for testing
+    TobyDataPipe* writeDataPipeBuffer;      // these are just for testing
+    TobyDataPipe* readDataPipeBuffer;      // these are just for testing
+
     volatile bool* threadExitSignal;
     volatile bool* threadStartCommSignal;
 };
@@ -91,8 +96,11 @@ private:
     TobyRingBuffer* readBuffer;
 
 
-    // ein versucht
+    // just a try
     PingPongBuffer* writePongBuffer;
+    TobyDataPipe* writeDataPipe;
+    TobyDataPipe* readDataPipe;
+
 
 
     // our worker thread function, needs to be static, otherwise pthread can't execute (is C, not C++)

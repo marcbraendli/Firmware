@@ -12,6 +12,8 @@
 
 #include "tobyRingBuffer.h"
 #include "pingPongBuffer.h"
+#include "tobyDataPipe.h"
+
 
 #include "tobyDevice.h"
 #include "tobyDeviceUart.h"
@@ -24,6 +26,7 @@ struct threadParameter //TODO rename
 {
     TobyDevice* myDevice;
     TobyRingBuffer* readBuffer;
+    TobyDataPipe* readPipeBuffer;
     volatile bool* threadExitSignal;
 
 };
@@ -51,7 +54,7 @@ public:
      * @param
      * @return
      */
-    atCommander(TobyDevice* tobyDevice, TobyRingBuffer* read, TobyRingBuffer* write, PingPongBuffer* write2);
+    atCommander(TobyDevice* tobyDevice, TobyRingBuffer* read, TobyRingBuffer* write, PingPongBuffer* write2, TobyDataPipe* write3, TobyDataPipe* read3);
 
     /**
      * @brief
@@ -176,6 +179,8 @@ private:
     TobyRingBuffer* readBuffer;
     TobyRingBuffer* writeBuffer;
     PingPongBuffer* pingPongWriteBuffer;
+    TobyDataPipe* dataPipeWriteBuffer;
+    TobyDataPipe* dataPipeReadBuffer;
 
     pthread_t* atReaderThread;
     threadParameter readerParameters;
