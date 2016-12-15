@@ -12,10 +12,13 @@
 #include "toby.h"
 #include "px4_log.h"
 
+enum{
+    INITIALIZINGSTEP = 10   // after 10 times a initializing step failed, it produces an error
+};
 
 
 
-atCommander::atCommander(TobyDevice* tobyDevice, BoundedBuffer* read, BoundedBuffer* write, PingPongBuffer* write2)
+atCommander::atCommander(TobyDevice* tobyDevice, TobyRingBuffer* read, TobyRingBuffer* write, PingPongBuffer* write2)
     : currentState (InitState), moduleState(ATCommandMode), myDevice(tobyDevice), readBuffer(read), writeBuffer(write), pingPongWriteBuffer(write2)
 {
 
@@ -33,8 +36,11 @@ atCommander::atCommander(TobyDevice* tobyDevice, BoundedBuffer* read, BoundedBuf
     atDirectLinkOk              ="CONNECT";
     stringEnd                   ='\0';
     atResponseOk                ="OK";
+    atResetCommand              ="AT+CFUN=16\r";
+    atExitDirectLink            ="+++\r";
 
     //
+
     for(int j=0; j < MAX_AT_COMMANDS; ++j)
         atCommandSendp[j] = &atCommandSendArray[j][0];
 
@@ -97,38 +103,22 @@ void atCommander::process(Event e){
 
 
         if(e == evStart){
+            bool success = setDirectLinkMode();
 
-            PX4_INFO("ReadyState");
-            PX4_INFO("Direct Link Connection");
-            myDevice->write(atDirectLinkRequest,getAtCommandLenght(atDirectLinkRequest));
+            if(success){
 
-            int poll_return = 0;
-            while(poll_return < 1){
-                //some stupid polling;
-                poll_return = myDevice->poll(100);
-                usleep(100000);
-               //todo : timeout
-            }
-
-            bzero(temporaryBuffer,62);
-            myDevice->read(temporaryBuffer,62);
-
-            PX4_INFO("Direct Link : %s",temporaryBuffer);
-
-            if(strstr(temporaryBuffer, atDirectLinkOk) != 0){
-                sleep(1);
                 moduleState = DirectLinkMode; // better error-handling
-                //set up readerParameters and start read thread
-                readerParameters.myDevice = myDevice;
-                readerParameters.readBuffer = readBuffer;
-                readerParameters.threadExitSignal = &readerExitSignal;
-                readerExitSignal = false;
-                atReaderThread = new pthread_t();
-                pthread_create(atReaderThread, NULL, atCommander::readWork, (void*)&readerParameters);
-                currentState=WriteState;
+                success = setReaderThread();
+                if(success){
+                    currentState=WriteState;
+                }
+                else{
+                    currentState = ErrorState;
+                }
 
             }
             else{
+                PX4_INFO("DirectLinkMode failed");
                 currentState = SetupState;
             }
         }
@@ -139,14 +129,16 @@ void atCommander::process(Event e){
     case WriteState :{
 
         if(e == evWriteDataAvailable){
-            int buffer_return = writeBuffer->getString(temporarySendBuffer,128);
+            char* data;
+            int buffer_return = writeBuffer->getActualReadBuffer(data);
 
-            int write_return = myDevice->write(temporarySendBuffer,buffer_return); //the number depends on the buffer deepness!!!!
-            PX4_INFO("successfull write %d",write_return);
-
+            PX4_INFO("successful write %d",buffer_return);
+            //int buffer_return = writeBuffer->getString(temporarySendBuffer,72);
+            int write_return = myDevice->write(data,buffer_return); //the number depends on the buffer deepness!!!!
             if(write_return != buffer_return){
-                PX4_INFO("Error writing Data to UART");
+                PX4_INFO("Error writing Data to UART"); // we lost data
             }
+            writeBuffer->gotDataSuccessful();
             usleep(10000);
 
 
@@ -165,10 +157,12 @@ void atCommander::process(Event e){
         // error handling, maybe reinitialize32 toby modul?
 
         //input-action
-        shutdownModule();
+        bool ret = shutdownModule();
+        if(ret){
+            //shutdown successful we try to reinitialize the LTE-Module -> no error counting yet
+            currentState = InitState;
+        }
 
-        //we try to reinitialize the LTE-Module -> no error counting yet
-        currentState = InitState;
         break;
     }
 
@@ -185,8 +179,8 @@ void* atCommander::atCommanderStart(void* arg){
     PX4_INFO("AT-Commander start");
     //**************get arguments*************************
     myStruct *arguments = static_cast<myStruct*>(arg);
-    BoundedBuffer *atWriteBuffer = arguments->writeBuffer;
-    BoundedBuffer *atReadBuffer = arguments->readBuffer;
+    TobyRingBuffer *atWriteBuffer = arguments->writeBuffer;
+    TobyRingBuffer *atReadBuffer = arguments->readBuffer;
     TobyDevice *atTobyDevice = arguments->myDevice;
     PingPongBuffer *pingPongWriteBuffer = arguments->writePongBuffer;
     volatile bool* shouldExitSignal = arguments->threadExitSignal;
@@ -239,7 +233,7 @@ void* atCommander::atCommanderStart(void* arg){
 
 bool atCommander::tobyAlive(int times){
 
-    PX4_INFO("Check %d times with 1 Second in between for Toby", times);
+    PX4_INFO("Check %d times for Toby", times);
     bool    returnValue     =false;
     int     returnPollValue =0;
     int     returnWriteValue=0;
@@ -261,8 +255,6 @@ bool atCommander::tobyAlive(int times){
             myDevice->read(temporaryBuffer,62);
             //PX4_INFO("tobyAlive answer :%s",temporaryBuffer);
             if(strstr(temporaryBuffer,atResponseOk) != 0){
-                //PX4_INFO("tobyAlive Command Successfull : %s",atReadyRequest);
-                //PX4_INFO("Toby is connected",temporaryBuffer);
                 returnValue=true;
             }else{
                 bzero(temporaryBuffer,62);
@@ -298,7 +290,7 @@ bool atCommander::initTobyModul(){
         sleep(1);
         returnValue = myDevice->read(temporaryBuffer,62);
         if(strstr(temporaryBuffer,atResponseOk) != 0){
-            PX4_INFO("Command Successfull : %s",atCommandSendp[i]);
+            PX4_INFO("Command successful : %s",atCommandSendp[i]);
             PX4_INFO("answer: %s",temporaryBuffer);
 
             ++i; //sucessfull, otherwise, retry
@@ -308,7 +300,7 @@ bool atCommander::initTobyModul(){
             if(i > 0){
                 --i; //we try the last command befor, because if we can't connect to static ip, it closes the socket automatically and we need to reopen
 
-                if(timeout > 10){ //check 10 times otherwise we failed
+                if(timeout > INITIALIZINGSTEP){ //check 10 times otherwise we failed
                     success = false;
                 }
 
@@ -325,6 +317,51 @@ bool atCommander::initTobyModul(){
     return success;
 
 }
+
+bool atCommander::setDirectLinkMode(void){
+
+
+    PX4_INFO("Direct Link Connection");
+    myDevice->write(atDirectLinkRequest,getAtCommandLenght(atDirectLinkRequest));
+
+    int poll_return = 0;
+    while(poll_return < 1){
+        //some stupid polling;
+        poll_return = myDevice->poll(200);
+        usleep(100000); //wait for all data in uart-buffer
+    }
+
+    bzero(temporaryBuffer,62);
+    myDevice->read(temporaryBuffer,62);
+
+    PX4_INFO("Direct Link : %s",temporaryBuffer);
+
+    if(strstr(temporaryBuffer, atDirectLinkOk) != 0){
+        return true;
+    }
+    else{
+        return false;
+    }
+}
+
+
+bool atCommander::setReaderThread(void){
+
+    readerParameters.myDevice = myDevice;
+    readerParameters.readBuffer = readBuffer;
+    readerParameters.threadExitSignal = &readerExitSignal;
+    readerExitSignal = false;
+    atReaderThread = new pthread_t();
+    int ret = pthread_create(atReaderThread, NULL, atCommander::readWork, (void*)&readerParameters);
+    if(ret){
+        PX4_INFO("creating reader-thread failed");
+        return false;
+    }
+    else{
+        return true;
+    }
+}
+
 
 
 int atCommander::getAtCommandLenght(const char* at_command)
@@ -408,7 +445,7 @@ void* atCommander::readWork(void *arg){
     PX4_INFO("readWork Thread started");
     //extract arguments :
     threadParameter *arguments = static_cast<threadParameter*>(arg);
-    BoundedBuffer* readBuffer = arguments->readBuffer;
+    TobyRingBuffer* readBuffer = arguments->readBuffer;
     TobyDevice* myDevice = arguments->myDevice;
     volatile bool* shouldExitSignal = arguments->threadExitSignal;
 
@@ -431,7 +468,6 @@ void* atCommander::readWork(void *arg){
             usleep(10000);
             u =  myDevice->read(buffer,64);
             readBuffer->putString(buffer,u);
-            PX4_INFO("readWorker successfull read %d",u);
         }
         else{
             usleep(10000);
@@ -461,16 +497,15 @@ int atCommander::shutDown(void){
 }
 
 
+
 bool atCommander::shutdownModule(){
 
+
     if(moduleState == DirectLinkMode){
-        // actually we don't know how we can reset the module from the direct link mode
-        return false;
-    }
+        myDevice->write(atExitDirectLink, getAtCommandLenght(atExitDirectLink));
 
-    if(moduleState == ATCommandMode){
-        myDevice->write()
     }
+    myDevice->write(atResetCommand, getAtCommandLenght(atResetCommand));
 
-    return true;
+    return false;
 }

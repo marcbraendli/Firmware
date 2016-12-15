@@ -42,8 +42,10 @@ px4_add_module(
                 tobyDevice.h
 		tobyDeviceUart.cpp
                 tobyDeviceUart.h
-		boundedBuffer.cpp
-		boundedBuffer.h
+		tobyRingBuffer.cpp
+		tobyRingBuffer.h
+		tobyDataPipe.cpp
+		tobyDataPipe.h
 		atCommander.cpp
 		atCommander.h
                 pingPongBuffer.h

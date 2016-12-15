@@ -1,16 +1,12 @@
-#include "boundedBuffer.h"
+#include "tobyRingBuffer.h"
 #include "px4_log.h"
 
-enum{
-    BUFDEEPTH = 128,
-};
 
 
 //dirty intializing
-//TODO: Do it in a better way?
 static pthread_mutex_t bufferlock = PTHREAD_MUTEX_INITIALIZER;
 
-BoundedBuffer::BoundedBuffer(){
+TobyRingBuffer::TobyRingBuffer(int inBufsize, int inBufdeepth) : bufsize (inBufsize), bufdeepth (inBufdeepth) {
 
     pthread_cond_init(&isFull,NULL);
     pthread_cond_init(&isEmpty,NULL);
@@ -32,7 +28,7 @@ BoundedBuffer::BoundedBuffer(){
     }
 }
 
-BoundedBuffer::~BoundedBuffer(){
+TobyRingBuffer::~TobyRingBuffer(){
 
     for(int i = 0; i < BUFSIZE; ++i ){
         free(myBuffer[i]);
@@ -41,11 +37,12 @@ BoundedBuffer::~BoundedBuffer(){
 
     free(myBuffer);
     free(mySize);
+
 }
 
 
 
-int BoundedBuffer::getString(char *val, size_t size){
+int TobyRingBuffer::getString(char *val, size_t size){
 
     pthread_mutex_lock(&bufferlock);
 //    PX4_INFO("getString: hasLock");
@@ -56,8 +53,7 @@ int BoundedBuffer::getString(char *val, size_t size){
     }
 
     if(mySize[tail] > size ){
-        // the requester's buffer isnt' big enough
-        PX4_INFO("boundedBuffer getString requested buffer isn't big enough");
+        PX4_INFO("TobyRingBuffer getString requested buffer isn't big enough");
         pthread_cond_signal(&isFull);
         pthread_mutex_unlock(&bufferlock);
         return 0;
@@ -67,29 +63,23 @@ int BoundedBuffer::getString(char *val, size_t size){
     tail = next(tail);
     --numElements;
     memcpy(val,myBuffer[temp],mySize[temp]);
-    //free(myBuffer[head]); // we call free in deconstructor
     temp = mySize[temp];
     pthread_cond_signal(&isFull);
- //   PX4_INFO("getString: leaveLock");
-
     pthread_mutex_unlock(&bufferlock);
     return temp;
 
 }
 
-bool BoundedBuffer::putString(const char* val, size_t size){
+bool TobyRingBuffer::putString(const char* val, size_t size){
 
-   // PX4_INFO("boundedBuffer: put String is called() %s",val);
 
     pthread_mutex_lock(&bufferlock);
-   // PX4_INFO("putString: hasLock");
 
     while(this->full()){
-       // PX4_INFO("boundedBuffer: isFull");
-
+        //this is needed because mavlink does not handle if nothing was written,
+        //otherwise here we would return 0 and so no lock would be needed
         pthread_cond_wait(&isFull,&bufferlock);
     }
-    //myBuffer[head] = (char*)malloc(size*sizeof(char));
    while(myBuffer[head]== NULL){
        PX4_INFO("ERROR PUT STRING couldn't get space from malloc");
        sleep(2);
@@ -97,19 +87,15 @@ bool BoundedBuffer::putString(const char* val, size_t size){
    }
    if(size > BUFDEEPTH){
        PX4_INFO("Bounded Buffer: Not enough space!");
-     //  size = 64;
    }
 
     memcpy(myBuffer[head],val,size);
-   // PX4_INFO("boundedBuffer: saved String is %s",myBuffer[head]);
 
     mySize[head] = size;
     numElements++;
     head = next(head);
 
     pthread_cond_signal(&isEmpty);
-  //  PX4_INFO("putString: leaveLock");
-
     pthread_mutex_unlock(&bufferlock);
 
 
@@ -117,6 +103,24 @@ bool BoundedBuffer::putString(const char* val, size_t size){
     return true;
 }
 
+
+// dangerous but more efficenct, because we don't need copy twice!
+int TobyRingBuffer::getActualReadBuffer(char* &val){
+    val = myBuffer[tail];
+    return mySize[tail];
+}
+
+bool TobyRingBuffer::gotDataSuccessful(){
+
+    pthread_mutex_lock(&bufferlock);
+    pthread_cond_signal(&isFull);
+    tail = next(tail);
+    --numElements;
+    pthread_mutex_unlock(&bufferlock);
+
+    return true;
+
+}
 
 
 

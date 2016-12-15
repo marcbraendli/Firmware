@@ -26,18 +26,8 @@
 
 extern "C" __EXPORT int toby_main(int argc, char *argv[]);
 
-/* Hilfs und Testfunktionen deklaration evt später als private in Klasse implementieren!*/
-int set_flowcontrol(int fd, int control);
-void *doClose(void *arg);
 
 
-/**
-* @brief Default Konstruktor
-*
-* Initialisiert dies und jenes
-*
-* @date ?
-*/
 Toby::Toby() :
 #ifdef __PX4_NUTTX
     CDev("Toby", "/dev/toby")
@@ -48,10 +38,10 @@ Toby::Toby() :
 #endif
 {
 	init();
-    writeBuffer = new BoundedBuffer();
-    readBuffer = new BoundedBuffer();
+    writeBuffer = new TobyRingBuffer(10,158);
+    readBuffer = new TobyRingBuffer(10,158);
     writePongBuffer = new PingPongBuffer();
-    atCommanderThread = 0;
+    atCommanderThread = nullptr;
 }
 
 
@@ -62,6 +52,10 @@ Toby::~Toby()
         //should already be deleted in close(), but if close never never is called:
         delete myTobyDevice;
     }
+
+    delete writeBuffer;
+    delete readBuffer;
+    delete writePongBuffer;
 }
 
 
@@ -161,8 +155,6 @@ Toby *gToby;
 int
 toby_main(int argc, char *argv[])
 {
-    /* set to default */
-    //const char *device_name = TOBY_DEVICE_PATH;
 
     //Load start parameter laden
     int myoptind = 1;
@@ -172,7 +164,7 @@ toby_main(int argc, char *argv[])
     if (argc < 2) {
 
         //stop test reset und status in planung
-        PX4_ERR("unrecognized command, try 'start', 'stop', 'test', 'delete' or 'status'");
+        PX4_ERR("unrecognized command, try 'start', 'stop', 'test' or 'status'");
         PX4_ERR("[-d " TOBY_DEVICE_PATH "][-f (for enabling fake)][-s (to enable sat info)]");
         return 1;
     }
@@ -205,11 +197,6 @@ toby_main(int argc, char *argv[])
         gToby->stopAllThreads();
     }
 
-    /*
-     * Test the driver/device.
-     */
-    if (!strcmp(argv[1], "test")) {
-    }
 
     /*
      * delete the driver. Be sure what you do, so if mavlink is allready running,
@@ -318,15 +305,16 @@ int Toby::open(device::file_t *filp){
     threadExitSignal = false;
 
     atCommanderThread = new pthread_t;
-    pthread_create(atCommanderThread, NULL, atCommander::atCommanderStart, (void*)&atCommanderParameters);
+    int ret = pthread_create(atCommanderThread, NULL, atCommander::atCommanderStart, (void*)&atCommanderParameters);
+    if(ret){
+        PX4_INFO("Toby::open() failed");
+        return -1;
+    }
 
 
     //**************************Initialize the polling-Thread******************************
 
   //  pthread_create(pollingThread, NULL, pollingThreadStart, (void*)&pollingThreadParameters);
-
-
-    PX4_INFO("Toby:: exit open()");
 
 
     usleep(100);
@@ -363,9 +351,6 @@ void* Toby::writeWork(void *arg){
         return NULL;
     }
 
-    int size = 0;
-
-
  //   for(int i = 0; i < 3; ++i)
     //TODO : Implement thread should exit logik
     while(1){
@@ -386,18 +371,6 @@ void* Toby::writeWork(void *arg){
 
         }
 
-
-
-        //write data to hardware
-        if(size > 62){
-            PX4_INFO("ERROR Thread has to write size: %d",size);
-        }
-
-          // write data to device
-          // variante 1) : myDevice->write(data,size)
-
-
-
     sleep(2);
 
 
@@ -415,7 +388,7 @@ void* Toby::readWork(void *arg){
     PX4_INFO("readWork Thread started");
     //extract arguments :
     myStruct *arguments = static_cast<myStruct*>(arg);
-    BoundedBuffer* readBuffer = arguments->readBuffer;
+    TobyRingBuffer* readBuffer = arguments->readBuffer;
     TobyDevice* myDevice = arguments->myDevice;
 
 
@@ -456,10 +429,7 @@ void* Toby::readWork(void *arg){
 
 }
 
-
-//****************************Helperfunctions, may going into a separate header File********************************
-
-void *doClose(void *arg)
+void *Toby::doClose(void *arg)
 {
 
 
@@ -475,7 +445,7 @@ void *doClose(void *arg)
 }
 
 
-int set_flowcontrol(int fd, int control)
+int Toby::set_flowcontrol(int fd, int control)
 {
     PX4_INFO("set_flowcontrol started");
 

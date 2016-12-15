@@ -14,7 +14,9 @@
 
 #include <fcntl.h>
 
-
+/**
+ * @brief The TobyDeviceUart class handles the communication over uart, implements interface TobyDevice
+ */
 
 
 class TobyDeviceUart : public TobyDevice
@@ -32,6 +34,8 @@ public:
 
     int ioctl(int cmd, unsigned long arg);
     int	poll(int timeout);
+    void printStatus(void);
+
 
 private:
     bool uart_open(void);

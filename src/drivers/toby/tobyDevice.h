@@ -33,6 +33,8 @@ public:
     virtual ssize_t	write(const char *buffer, size_t buflen) = 0;
     virtual int ioctl(int cmd, unsigned long arg)= 0;
     virtual int	poll(int timeout) = 0;
+    virtual void printStatus(void);
+
 
 private:
 

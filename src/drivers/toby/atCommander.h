@@ -10,7 +10,7 @@
 #ifndef atCommander_h
 #define atCommander_h
 
-#include "boundedBuffer.h"
+#include "tobyRingBuffer.h"
 #include "pingPongBuffer.h"
 
 #include "tobyDevice.h"
@@ -23,7 +23,7 @@
 struct threadParameter //TODO rename
 {
     TobyDevice* myDevice;
-    BoundedBuffer* readBuffer;
+    TobyRingBuffer* readBuffer;
     volatile bool* threadExitSignal;
 
 };
@@ -51,7 +51,7 @@ public:
      * @param
      * @return
      */
-    atCommander(TobyDevice* tobyDevice, BoundedBuffer* read, BoundedBuffer* write, PingPongBuffer* write2);
+    atCommander(TobyDevice* tobyDevice, TobyRingBuffer* read, TobyRingBuffer* write, PingPongBuffer* write2);
 
     /**
      * @brief
@@ -159,17 +159,22 @@ private:
     int shutDown(void);
 
     /**
-     * @brief shutdownModule does shutDown the LTE-Module, preparing for reinitializing
-     * @return true if successful, false if failed
+     * @brief shutdownModule does shutDown the LTE-Module, preparing for reinitializing. Do NOT work because
+     * a reinitializing on the VAB-600 board is needed (socat reconnect)!!
+     * @return true if successful, false if failed : actually, always returns fail
      */
     bool shutdownModule(void);
+
+    bool setDirectLinkMode(void);
+
+    bool setReaderThread(void);
 
 
     State currentState;
     ModuleState moduleState;
     TobyDevice* myDevice;
-    BoundedBuffer* readBuffer;
-    BoundedBuffer* writeBuffer;
+    TobyRingBuffer* readBuffer;
+    TobyRingBuffer* writeBuffer;
     PingPongBuffer* pingPongWriteBuffer;
 
     pthread_t* atReaderThread;
@@ -191,6 +196,9 @@ private:
     const char* atReadyRequest;
     const char* atDirectLinkOk;
     const char* stringEnd;
+    const char* atResetCommand;
+    const char* atExitDirectLink;
+
 };
 
 

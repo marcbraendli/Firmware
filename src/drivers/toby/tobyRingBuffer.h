@@ -3,13 +3,14 @@
 #include <string.h>
 #include <semaphore.h>
 
-#ifndef BOUNDEDBUFFER
-#define BOUNDEDBUFFER
+#ifndef TOBYRINGBUFFER
+#define TOBYRINGBUFFER
 
 
 //Number of buffered elements in buffer, later, we may change to a parameter in constructor with enum, easier to test)
 enum{
     BUFSIZE = 10,
+    BUFDEEPTH = 72,
 };
 
 
@@ -18,23 +19,17 @@ enum{
  *
  * The Name "BoundedBuffer" isnt valid anymore, its actual a CircularBuffer
  * is Threadsafe, works only with the toby-module
- *
- * BUFSIZE: Number of total items
- * BUFDEEPTH: Maximal size of a single item
- *
- *
- *
  */
 
 
 
-class BoundedBuffer
+class TobyRingBuffer
 
 {
 public:
 
-    BoundedBuffer();
-    ~BoundedBuffer();
+    TobyRingBuffer(int inBufsize, int inBufdeepth);
+    ~TobyRingBuffer();
 
 
     /**
@@ -66,10 +61,24 @@ public:
      * @brief full
      * @return true if the buffer is full
      */
-    bool full(void){
+    inline bool full(void){
 
         return (numElements == BUFSIZE);
     }
+
+    /**
+     * @brief getActualReadBuffer returns a pointer to the data field, data will not be copied. After successful call, you need to call gotDataSuccessful
+     * @param val pointer which will point to the data field after function call
+     * @return returns total number of sizeof(char) are stored in destination
+     */
+    int getActualReadBuffer(char* &val);
+
+    /**
+     * @brief gotDataSuccessful signaling to buffer that the data field which is pointet from getActualReadBuffer was successful needed and not needed anymore
+     * @return
+     */
+    bool gotDataSuccessful(void);
+
 
 
 
@@ -87,6 +96,8 @@ private:
     pthread_cond_t isFull;
     pthread_cond_t isEmpty;
 
+    int bufsize;
+    int bufdeepth;
     char** myBuffer;
     int* mySize;
     int head;

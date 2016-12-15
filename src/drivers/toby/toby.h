@@ -14,7 +14,7 @@
 #include "tobyDevice.h"
 #include "tobyDeviceUart.h"
 
-#include "boundedBuffer.h"
+#include "tobyRingBuffer.h"
 #include "pingPongBuffer.h"
 
 
@@ -24,8 +24,8 @@
 struct myStruct //TODO rename
 {
     TobyDevice* myDevice;
-    BoundedBuffer* writeBuffer;  //TODO rename
-    BoundedBuffer* readBuffer;
+    TobyRingBuffer* writeBuffer;
+    TobyRingBuffer* readBuffer;
     PingPongBuffer* writePongBuffer;
     volatile bool* threadExitSignal;
     volatile bool* threadStartCommSignal;
@@ -66,6 +66,9 @@ public:
 
 private:
 
+    int set_flowcontrol(int fd, int control);
+    void *doClose(void *arg);
+
     TobyDeviceUart* myTobyDevice;
 
     struct termios options= {};
@@ -84,8 +87,8 @@ private:
     myStruct readerParameters;
 
 
-    BoundedBuffer* writeBuffer;
-    BoundedBuffer* readBuffer;
+    TobyRingBuffer* writeBuffer;
+    TobyRingBuffer* readBuffer;
 
 
     // ein versucht

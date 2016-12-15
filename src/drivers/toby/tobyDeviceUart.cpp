@@ -126,9 +126,6 @@ void TobyDeviceUart::uart_close(void){
 
 
 
-//****************************hilfsfunktionen********************************
-
-
 bool TobyDeviceUart::uart_open(void){
 
 
@@ -169,10 +166,6 @@ bool TobyDeviceUart::uart_open(void){
     cfsetispeed(&options, B57600);
     cfsetospeed(&options, B57600);
 
-
-  //  cfsetispeed(&options, B9600);
-  //  cfsetospeed(&options, B9600);
-
     set_flowcontrol(uart0_filestream,0);
     tcflush(uart0_filestream, TCIFLUSH);
 
@@ -189,6 +182,11 @@ bool TobyDeviceUart::uart_open(void){
 }
 
 
+void TobyDeviceUart::printStatus(void){
+
+    PX4_INFO("Current filedescriptor: %d", uart0_filestream);
+
+}
 
 
 
