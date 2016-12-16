@@ -19,7 +19,9 @@ enum{
 
 
 atCommander::atCommander(TobyDevice* tobyDevice, TobyRingBuffer* read, TobyRingBuffer* write, PingPongBuffer* write2, TobyDataPipe* write3, TobyDataPipe* read3)
-    : currentState (InitState), moduleState(ATCommandMode), myDevice(tobyDevice), readBuffer(read), writeBuffer(write), pingPongWriteBuffer(write2), dataPipeWriteBuffer(write3), dataPipeReadBuffer(read3)
+    : currentState (InitState), moduleState(ATCommandMode), myDevice(tobyDevice),
+      readBuffer(read), writeBuffer(write), pingPongWriteBuffer(write2),
+      dataPipeWriteBuffer(write3), dataPipeReadBuffer(read3)
 {
 
 
@@ -130,27 +132,20 @@ void atCommander::process(Event e){
 
         if(e == evWriteDataAvailable){
 
-            /*
-            char* data;
-            int buffer_return = writeBuffer->getActualReadBuffer(data);
-
-            PX4_INFO("successful write %d",buffer_return);
-            //int buffer_return = writeBuffer->getString(temporarySendBuffer,72);
-            int write_return = myDevice->write(data,buffer_return); //the number depends on the buffer deepness!!!!
-            if(write_return != buffer_return){
-                PX4_INFO("Error writing Data to UART"); // we lost data
-            }
-            writeBuffer->gotDataSuccessful();
-            usleep(10000);
-            */
-
-            int buffer_return = dataPipeWriteBuffer->getItem(temporaryBuffer,72);
-            int write_return = myDevice->write(temporaryBuffer,buffer_return);
+            char* data = nullptr;
+            buffer_return = dataPipeWriteBuffer->getItemPointer(data);  // we only use a pointer, data points to the data which are avaiable, so there is no copy needed
+            //buffer_return = dataPipeWriteBuffer->getItem(temporarySendBuffer,62);
+            PX4_INFO("Buffer_return = %d", buffer_return);
+            write_return = myDevice->write(data,buffer_return);
+            // write_return = myDevice->write(temporarySendBuffer,buffer_return);
 
             if(write_return != buffer_return){
                 PX4_INFO("Error writing Data to UART"); // we lost data
             }
+            dataPipeWriteBuffer->getItemSuccessful();   // we have to "free" the data we send
             usleep(10000);
+
+
 
         }
         else if(e == evShutDown){
@@ -164,19 +159,24 @@ void atCommander::process(Event e){
     case ErrorState :{
         PX4_INFO("ErrorState");
         sleep(5); // do here some sleeping, so we can better read the error messages output from nsh
-        // error handling, maybe reinitialize32 toby modul?
 
-        //input-action
-        bool ret = shutdownModule();
-        if(ret){
-            //shutdown successful we try to reinitialize the LTE-Module -> no error counting yet
-            currentState = InitState;
+        //input-action -> stop reader thread and LTE-Module
+        int readShutdownSuccess = shutDown();
+        if(readShutdownSuccess != -1){
+            bool ret = shutdownModule();
+            if(ret){
+                //shutdown successful we try to reinitialize the LTE-Module -> no error counting yet
+                currentState = InitState;
+            }
         }
+
 
         break;
     }
 
     default :
+        // not needed but for pretty completion:
+        currentState = ErrorState;
         break;
         //break; every other State went to the ErrorState
 
@@ -188,7 +188,7 @@ void* atCommander::atCommanderStart(void* arg){
 
     PX4_INFO("AT-Commander start");
     //**************get arguments*************************
-    myStruct *arguments = static_cast<myStruct*>(arg);
+    threadParameters *arguments = static_cast<threadParameters*>(arg);
     TobyRingBuffer *atWriteBuffer = arguments->writeBuffer;
     TobyRingBuffer *atReadBuffer = arguments->readBuffer;
     TobyDevice *atTobyDevice = arguments->myDevice;
@@ -200,27 +200,21 @@ void* atCommander::atCommanderStart(void* arg){
 
     volatile bool* shouldExitSignal = arguments->threadExitSignal;
 
-
     atCommander *atCommanderFSM = new atCommander(atTobyDevice,atReadBuffer,atWriteBuffer,pingPongWriteBuffer, dataPipeWriteBuffer, dataPipeReadBuffer);
 
 
-    PX4_INFO("Beginn with transfer, should exit : ");
+    PX4_INFO("Beginn with transfer");
 
-    if(*shouldExitSignal){
-        PX4_INFO("should exit");
-    }
-    else if(*shouldExitSignal == false){
-        PX4_INFO("no exit signal");
 
-    }
 
     atCommanderFSM->process(evInit);
 
     atCommanderFSM->process(evStart);
 
-
     PX4_INFO("Sleep");
-    sleep(10);
+    sleep(1);
+    PX4_INFO("Run");
+
 
     while(!*shouldExitSignal){
 
@@ -236,20 +230,6 @@ void* atCommander::atCommanderStart(void* arg){
 
     }
 
-
-    while(!*shouldExitSignal){
-
-        if(!(atWriteBuffer->empty())){ // a bit inconsistent, should be done in FSM, but for actual state of play useful
-            atCommanderFSM->process(evWriteDataAvailable);
-            usleep(1000);
-        }
-        else{
-            usleep(1000);
-        }
-
-
-
-    }
 
     PX4_INFO("Thread terminate");
 
@@ -479,12 +459,8 @@ void* atCommander::readWork(void *arg){
     TobyDevice* myDevice = arguments->myDevice;
     volatile bool* shouldExitSignal = arguments->threadExitSignal;
 
-
-
-
     // a ty
     char* buffer = (char*)malloc(64*sizeof(char));
-
 
     if(myDevice == NULL || readBuffer == NULL){
         PX4_INFO("readWork Thread parameters invalid");
@@ -506,7 +482,7 @@ void* atCommander::readWork(void *arg){
                 u =  myDevice->read(buffer,space);
                 put_return = readPipeBuffer->putItem(buffer,u);
                 if(put_return < u){
-                 //   PX4_INFO("ERROR no space");
+                    //   PX4_INFO("ERROR no space");
                 }
                 else{
                     PX4_INFO("Successful read of %d",put_return);
@@ -520,22 +496,6 @@ void* atCommander::readWork(void *arg){
 
         usleep(10000);
     }
-
-
-    while(!(*shouldExitSignal)){
-        i = myDevice->poll(0);
-        if(i>0){
-            usleep(10000);
-            u =  myDevice->read(buffer,64);
-            readBuffer->putString(buffer,u);
-        }
-        else{
-            usleep(10000);
-        }
-
-        usleep(10000);
-    }
-
 
     PX4_INFO("readWork exit");
 
@@ -562,10 +522,10 @@ bool atCommander::shutdownModule(){
 
     PX4_INFO("Shutdown LTE-Module");
     if(moduleState == DirectLinkMode){
-       // myDevice->write(atExitDirectLink, getAtCommandLenght(atExitDirectLink));
+        // myDevice->write(atExitDirectLink, getAtCommandLenght(atExitDirectLink));
 
     }
-   // myDevice->write(atResetCommand, getAtCommandLenght(atResetCommand));
+    // myDevice->write(atResetCommand, getAtCommandLenght(atResetCommand));
 
     return false;
 }

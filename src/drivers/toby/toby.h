@@ -23,7 +23,7 @@
 
 
 
-struct myStruct //TODO rename
+struct threadParameters
 {
     TobyDevice* myDevice;
     TobyRingBuffer* writeBuffer;
@@ -81,15 +81,15 @@ private:
     pthread_t *readerThread;
 
     pthread_t *atCommanderThread;
-    myStruct atCommanderParameters;
+    threadParameters atCommanderParameters;
     volatile bool threadExitSignal;
 
     pthread_t *pollingThread;
 
-    myStruct pollingThreadParameters;
+    threadParameters pollingThreadParameters;
 
-    myStruct workerParameters; //TODO rename
-    myStruct readerParameters;
+    threadParameters workerParameters;
+    threadParameters readerParameters;
 
 
     TobyRingBuffer* writeBuffer;

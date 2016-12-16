@@ -98,9 +98,6 @@ ssize_t	Toby::read(device::file_t *filp, char *buffer, size_t buflen)
     int i = 0;
     i = readDataPipe->getItem(buffer,buflen);
   //  i = (readBuffer->getString(buffer,buflen));
-
-    PX4_INFO("Mavlink reads succesful %d",i);
-
     return i;
 
 }
@@ -143,14 +140,11 @@ int	Toby::poll(device::file_t *filp, struct pollfd *fds, bool setup){
     if(!(readDataPipe->isEmpty())){
         poll_notify(POLLIN);
         poll_notify_one(fds, POLLIN);
-        PX4_INFO("Mavlink polls successful");
         return  1;
 
     }
 
     else{
-        PX4_INFO("Mavlink poll fails");
-
         return 0;
     }
 
@@ -360,7 +354,7 @@ void* Toby::writeWork(void *arg){
 
     PX4_INFO("writeWork Thread started");
     //extract arguments :
-    myStruct *arguments = static_cast<myStruct*>(arg);
+    threadParameters *arguments = static_cast<threadParameters*>(arg);
     //BoundedBuffer* writeBuffer = arguments->writeBuffer;
     TobyDevice* myDevice = arguments->myDevice;
     PingPongBuffer* writePongBuffer = arguments->writePongBuffer;
@@ -379,12 +373,9 @@ void* Toby::writeWork(void *arg){
     }
 
  //   for(int i = 0; i < 3; ++i)
-    //TODO : Implement thread should exit logik
     while(1){
 
         //get data from buffer
-        //variante 1) : size = writeBuffer->getString(data,62);
-
         if(writePongBuffer->DataAvaiable()){
             readBuffer = (writePongBuffer->getActualReadBuffer());
         }
@@ -414,7 +405,7 @@ void* Toby::readWork(void *arg){
 
     PX4_INFO("readWork Thread started");
     //extract arguments :
-    myStruct *arguments = static_cast<myStruct*>(arg);
+    threadParameters *arguments = static_cast<threadParameters*>(arg);
     TobyRingBuffer* readBuffer = arguments->readBuffer;
     TobyDevice* myDevice = arguments->myDevice;
 

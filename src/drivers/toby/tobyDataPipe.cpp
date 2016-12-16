@@ -1,38 +1,22 @@
-/*
- * LongBuffer.cpp
- *
- *  Created on: 11.12.2016
- *      Author: michaellehmann
- */
-
 
 #include "tobyDataPipe.h"
-
-enum{
-	BUFLENGTH = 12,
-};
-
-//dirty initialisation
-static pthread_mutex_t dataPipeLock = PTHREAD_MUTEX_INITIALIZER;
+#include "px4_log.h"
 
 
-TobyDataPipe::TobyDataPipe(int inBuflength) : buflength(inBuflength), head(0),tail(0),space(buflength){
+
+TobyDataPipe::TobyDataPipe(int inBuflength) : buflength(inBuflength), head(0),tail(0),space(buflength), dataToDelete(0), lastIsDeleted(true){
     myBuffer = (char*)malloc(buflength*sizeof(char));
-
-    pthread_cond_init(&pipeIsFull,NULL);
-    pthread_cond_init(&pipeIsEmpty,NULL);
+    pthread_mutex_init(&dataPipeLock,nullptr);
 
 }
 
 TobyDataPipe::~TobyDataPipe() {
-	// TODO Auto-generated destructor stub
+    pthread_mutex_destroy(&dataPipeLock);
 }
 
 int TobyDataPipe::getItem(char* buffer, int buflen){
-  //  pthread_mutex_lock(&dataPipeLock);
 
-
-    int localSpace = space; // save first
+    int localSpace = space; // save first, read is atomic operation
     if(localSpace == buflength){
 		return 0;
 	}
@@ -59,17 +43,18 @@ int TobyDataPipe::getItem(char* buffer, int buflen){
    // space += numToCpy;
     updateSpace(numToCpy);
 
-  //  pthread_mutex_unlock(&dataPipeLock);
 	return numToCpy;
 }
 
 int TobyDataPipe::putItem(const char* val, size_t size){
 
-    int localSpace = space; // save first
+    int localSpace = space; // save first, read is atomic operation
 
+    /*
     if(localSpace < size){
 		return 0;
 	}
+    */
 
 	int numToCpy;
     if(size >= localSpace){
@@ -89,14 +74,53 @@ int TobyDataPipe::putItem(const char* val, size_t size){
 		memcpy(&myBuffer[0], &val[delta],numToCpy - (delta));
 		head = numToCpy - (delta);
 	}
-    updateSpace(-numToCpy);
+
+    //space -= numToCpy;
+    updateSpace(0 - numToCpy);
 	return numToCpy;
 }
 
-void TobyDataPipe::updateSpace(int update){
-    pthread_mutex_lock(&dataPipeLock);
-    space += update;
-    pthread_mutex_unlock(&dataPipeLock);
+bool TobyDataPipe::isEmpty(void){
+    return (space == buflength);
+}
+
+int TobyDataPipe::getItemPointer(char* &val){
+    if(!lastIsDeleted){
+        PX4_INFO("FAIL getItemPointer");
+
+        return 0;
+    }
+
+    val = &myBuffer[tail];
+    int local_head = head; // atomic operation, we dont care if head is updated later
+    if((local_head >= tail) & (space != 0)){
+        dataToDelete = local_head - tail;
+
+    }
+    else{
+
+        dataToDelete = buflength - tail;
+    }
+    lastIsDeleted = false;
+
+    return dataToDelete;
+}
+
+bool TobyDataPipe::getItemSuccessful(void){
+    if(lastIsDeleted){
+        PX4_INFO("FAIL getItemSuccessful");
+        return false;
+    }
+
+    tail += dataToDelete;
+    if(tail == buflength){
+        tail = 0;
+    }
+    updateSpace(dataToDelete);
+    lastIsDeleted = true;
+    PX4_INFO("deleted successful : %d ",dataToDelete);
+
+    return true;
 }
 
 

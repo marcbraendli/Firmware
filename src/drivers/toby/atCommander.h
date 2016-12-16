@@ -163,13 +163,22 @@ private:
 
     /**
      * @brief shutdownModule does shutDown the LTE-Module, preparing for reinitializing. Do NOT work because
-     * a reinitializing on the VAB-600 board is needed (socat reconnect)!!
+     * a reinitializing on the VAB-600 board is needed (socat reconnect)!!  Just for showing how it could be implemented if there is no
+     * board between the LTE-Module and PX4-HW
      * @return true if successful, false if failed : actually, always returns fail
      */
     bool shutdownModule(void);
 
+    /**
+     * @brief setDirectLinkMode initialize the LTE-Module to the DiretLinkMode. The Module has to be initialized normally!
+     * @return true if success
+     */
     bool setDirectLinkMode(void);
 
+    /**
+     * @brief setReaderThread set up and starts the reader thread
+     * @return true if success
+     */
     bool setReaderThread(void);
 
 
@@ -182,12 +191,14 @@ private:
     TobyDataPipe* dataPipeWriteBuffer;
     TobyDataPipe* dataPipeReadBuffer;
 
+    int buffer_return;
+    int write_return;
+
     pthread_t* atReaderThread;
     threadParameter readerParameters;
     volatile bool readerExitSignal;
 
     int         numberOfAt;
-
     char  atCommandSendArray[MAX_AT_COMMANDS][MAX_CHAR_PER_AT_COMMANDS];
     char* atCommandSendp[MAX_AT_COMMANDS];
 

@@ -128,16 +128,10 @@ void TobyDeviceUart::uart_close(void){
 
 bool TobyDeviceUart::uart_open(void){
 
-
-
-    //Debugging
-  //  PX4_INFO("uart_open() is called");
         pid_t x = ::getpid();
-        PX4_INFO("actual thread id : %d",x);
-
+        PX4_INFO("actual thread id : %d",x); // Debug
     //***********************set options and open uart device************
 
-    //todo: Übernahme der Optionen termios des caller ... but how?
     uart0_filestream =px4_open(TOBY_L210_UART_PATH, O_RDWR |O_NOCTTY);
 
     if(uart0_filestream == -1)
@@ -146,21 +140,15 @@ bool TobyDeviceUart::uart_open(void){
         return false;
 
     }
-    //PX4_INFO("open return value /dev/ttys6: %d",localUart0_filestream);
-
     tcgetattr(uart0_filestream, &options);
-
     //options.c_cflag &= ~(CSIZE | PARENB);
     options.c_cflag = CS8;
     //options.c_iflag = IGNPAR;
     options.c_iflag&= ~(IGNBRK | BRKINT | ICRNL | INLCR | PARMRK | INPCK | ISTRIP | IXON);
     options.c_oflag = 0;
-
     options.c_oflag = O_NONBLOCK;
-
     options.c_lflag &= ~(ECHO | ECHONL | ICANON | IEXTEN | ISIG);
     //options.c_lflag = ECHO;
-
     options.c_cflag &= ~(CSTOPB | PARENB);
 
     cfsetispeed(&options, B57600);
