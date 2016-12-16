@@ -2,7 +2,7 @@
 * @file     atCommander.cpp
 *
 * @brief    Initialize the Toby Modul and handles the communication
-* @author   Marc Brändli
+* @author   Marc Brändli & Michael Lehmann
 * @date     12.12.2016
 */
 
@@ -18,10 +18,9 @@ enum{
 
 
 
-atCommander::atCommander(TobyDevice* tobyDevice, TobyRingBuffer* read, TobyRingBuffer* write, PingPongBuffer* write2, TobyDataPipe* write3, TobyDataPipe* read3)
+atCommander::atCommander(TobyDevice* tobyDevice, TobyDataPipe* inWriteBuffer, TobyDataPipe* inReadBuffer)
     : currentState (InitState), moduleState(ATCommandMode), myDevice(tobyDevice),
-      readBuffer(read), writeBuffer(write), pingPongWriteBuffer(write2),
-      dataPipeWriteBuffer(write3), dataPipeReadBuffer(read3)
+      dataPipeWriteBuffer(inWriteBuffer), dataPipeReadBuffer(inReadBuffer)
 {
 
 
@@ -133,12 +132,10 @@ void atCommander::process(Event e){
         if(e == evWriteDataAvailable){
 
             char* data = nullptr;
-            buffer_return = dataPipeWriteBuffer->getItemPointer(data);  // we only use a pointer, data points to the data which are avaiable, so there is no copy needed
-            //buffer_return = dataPipeWriteBuffer->getItem(temporarySendBuffer,62);
-            PX4_INFO("Buffer_return = %d", buffer_return);
-            write_return = myDevice->write(data,buffer_return);
-            // write_return = myDevice->write(temporarySendBuffer,buffer_return);
-
+            buffer_return = dataPipeWriteBuffer->getItemPointer(data);  // we only use a pointer, data points to the data which are avaiable, so there is no copy needed : //get without copy
+            //buffer_return = dataPipeWriteBuffer->getItem(temporarySendBuffer,62); //get with copy
+            write_return = myDevice->write(data,buffer_return); // write without copy
+            //write_return = myDevice->write(temporarySendBuffer,buffer_return);    write with copy
             if(write_return != buffer_return){
                 PX4_INFO("Error writing Data to UART"); // we lost data
             }
@@ -189,18 +186,14 @@ void* atCommander::atCommanderStart(void* arg){
     PX4_INFO("AT-Commander start");
     //**************get arguments*************************
     threadParameters *arguments = static_cast<threadParameters*>(arg);
-    TobyRingBuffer *atWriteBuffer = arguments->writeBuffer;
-    TobyRingBuffer *atReadBuffer = arguments->readBuffer;
     TobyDevice *atTobyDevice = arguments->myDevice;
-    // exctract for trying out some special buffer's
-    PingPongBuffer *pingPongWriteBuffer = arguments->writePongBuffer;
     TobyDataPipe *dataPipeWriteBuffer = arguments->writeDataPipeBuffer;
     TobyDataPipe *dataPipeReadBuffer = arguments->readDataPipeBuffer;
 
 
     volatile bool* shouldExitSignal = arguments->threadExitSignal;
 
-    atCommander *atCommanderFSM = new atCommander(atTobyDevice,atReadBuffer,atWriteBuffer,pingPongWriteBuffer, dataPipeWriteBuffer, dataPipeReadBuffer);
+    atCommander *atCommanderFSM = new atCommander(atTobyDevice, dataPipeWriteBuffer, dataPipeReadBuffer);
 
 
     PX4_INFO("Beginn with transfer");
@@ -356,7 +349,6 @@ bool atCommander::setDirectLinkMode(void){
 bool atCommander::setReaderThread(void){
 
     readerParameters.myDevice = myDevice;
-    readerParameters.readBuffer = readBuffer;
     readerParameters.threadExitSignal = &readerExitSignal;
     readerExitSignal = false;
     readerParameters.readPipeBuffer = dataPipeReadBuffer;
@@ -454,7 +446,6 @@ void* atCommander::readWork(void *arg){
     PX4_INFO("readWork Thread started");
     //extract arguments :
     threadParameter *arguments = static_cast<threadParameter*>(arg);
-    TobyRingBuffer* readBuffer = arguments->readBuffer;
     TobyDataPipe* readPipeBuffer = arguments->readPipeBuffer;
     TobyDevice* myDevice = arguments->myDevice;
     volatile bool* shouldExitSignal = arguments->threadExitSignal;
@@ -462,9 +453,9 @@ void* atCommander::readWork(void *arg){
     // a ty
     char* buffer = (char*)malloc(64*sizeof(char));
 
-    if(myDevice == NULL || readBuffer == NULL){
+    if(myDevice == nullptr || readPipeBuffer == nullptr){
         PX4_INFO("readWork Thread parameters invalid");
-        return NULL; // may do here some error handling
+        return nullptr; // may do here some error handling
     }
     int i = 0; // poll result handle
     int u = 0; //size of data received
@@ -499,7 +490,7 @@ void* atCommander::readWork(void *arg){
 
     PX4_INFO("readWork exit");
 
-    return NULL;
+    return nullptr;
 
 }
 
@@ -519,6 +510,7 @@ int atCommander::shutDown(void){
 
 
 bool atCommander::shutdownModule(){
+    //does not work yet because it was tested with VAB-600 Board Socat connection
 
     PX4_INFO("Shutdown LTE-Module");
     if(moduleState == DirectLinkMode){

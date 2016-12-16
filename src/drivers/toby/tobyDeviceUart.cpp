@@ -1,6 +1,11 @@
+/**
+ * @brief TobyDeviceUart implements TobyDevice Interface handles the communication over uart
+ * @file tobyDevice.h
+ * @author Marc Brändli & Michael Lehmann
+ *
+ */
+
 #include "tobyDeviceUart.h"
-
-
 #include <drivers/drv_toby.h>
 #include <drivers/device/ringbuffer.h>
 
@@ -16,12 +21,6 @@
 #include <fcntl.h>
 
 #define TOBY_L210_UART_PATH  "/dev/ttyS6"
-
-
-
-
-
-
 
 namespace TobyDeviceUartHelper {
 int set_flowcontrol(int fd, int control);

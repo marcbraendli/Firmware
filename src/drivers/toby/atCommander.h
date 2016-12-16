@@ -2,7 +2,7 @@
 * @file     atCommander.h
 *
 * @brief    Initialize the Toby Modul and handles the communication
-* @author   Marc Brändli
+* @author   Marc Brändli & Michael Lehmann
 * @date     12.12.2016
 */
 
@@ -22,10 +22,9 @@
 //for readAtfromSD function
 #define SD_CARD_PATH       "/fs/microsd/toby/at-inits.txt"
 
-struct threadParameter //TODO rename
+struct threadParameter
 {
     TobyDevice* myDevice;
-    TobyRingBuffer* readBuffer;
     TobyDataPipe* readPipeBuffer;
     volatile bool* threadExitSignal;
 
@@ -37,46 +36,39 @@ class atCommander
 
 {
 public:
-    //event Signals for the FSM
+
+
+    /**
+     * @brief The Event enum which defines the different events the FSM handles
+     */
     enum Event{
-        evReadDataAvailable,
         evWriteDataAvailable,
-        evInitOk,
-        evInitFail,
         evStart,
         evInit,
         evShutDown
     };
 
     /**
-     * @brief
-     *
-     * @param
-     * @return
+     * @brief atCommander the FSM Class which controls the communication between buffer and HW
+     * @param tobyDevice Pointer to hardware
+     * @param inWriteBuffer the buffer in which mavlink puts data to write
+     * @param inReadBuffer  the buffer from that mavlink gets data to read
      */
-    atCommander(TobyDevice* tobyDevice, TobyRingBuffer* read, TobyRingBuffer* write, PingPongBuffer* write2, TobyDataPipe* write3, TobyDataPipe* read3);
+    atCommander(TobyDevice* tobyDevice, TobyDataPipe* inWriteBuffer, TobyDataPipe* inReadBuffer);
 
-    /**
-     * @brief
-     *
-     * @param
-     * @return
-     */
+
     virtual ~atCommander();
 
     /**
-     * @brief
-     *
-     * @param
-     * @return
+     * @brief process the process function of the state machine
+     * @param e event
      */
     void process(Event e);
 
     /**
-     * @brief
-     *
-     * @param
-     * @return
+     * @brief atCommanderStart init point for AT-Commander Thread
+     * @param arg   atCommanderThread parameters
+     * @return nullptr
      */
     static void *atCommanderStart(void *arg);
 
@@ -139,10 +131,10 @@ private:
     bool readAtfromSD();
 
     /**
-     * @brief
+     * @brief readWork InitFunction for reading thread which is produced by this FSM
      *
-     * @param
-     * @return
+     * @param arg the parameters
+     * @return nullptr
      */
     static void* readWork(void *arg);
 
@@ -185,9 +177,6 @@ private:
     State currentState;
     ModuleState moduleState;
     TobyDevice* myDevice;
-    TobyRingBuffer* readBuffer;
-    TobyRingBuffer* writeBuffer;
-    PingPongBuffer* pingPongWriteBuffer;
     TobyDataPipe* dataPipeWriteBuffer;
     TobyDataPipe* dataPipeReadBuffer;
 
@@ -206,6 +195,10 @@ private:
     char* temporaryBuffer; // delete later, just for step-by-step test's
     char* temporarySendBuffer;
 
+    /**
+     * @brief Commands: the different AT-Commands, which are needed to interact with the LTE-Module
+     */
+
     const char* atEnterCommand;
     const char* atDirectLinkRequest;
     const char* atResponseOk;
@@ -216,15 +209,6 @@ private:
     const char* atExitDirectLink;
 
 };
-
-
-
-
-
-
-
-
-
 
 
 

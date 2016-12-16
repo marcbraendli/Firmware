@@ -1,7 +1,13 @@
+/**
+ * @brief TobyRingBuffer a RingBuffer implementation for Toby LTE-Modul dispatching
+ * @file tobyRingBuffer.h
+ * @author Marc Brändli & Michael Lehmann
+ *
+ */
+
+
 #include "tobyRingBuffer.h"
 #include "px4_log.h"
-
-
 
 //dirty intializing
 static pthread_mutex_t bufferlock = PTHREAD_MUTEX_INITIALIZER;

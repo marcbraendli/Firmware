@@ -1,7 +1,13 @@
+/**
+ * @brief TobyDevice defines the TobyDevice Interface
+ * @file tobyDevice.h
+ * @author Marc Brändli & Michael Lehmann
+ *
+ */
+
+
 #ifndef tobyDevice_h
 #define tobyDevice_h
-
-
 
 #include <drivers/device/device.h>
 #include <px4_config.h>

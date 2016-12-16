@@ -1,8 +1,12 @@
+/**
+ * @brief The TobyDataPipe class a flexible buffer designed for toby device, optimized use all allocated space
+ * @file tobyDataPipe.h
+ * @author Michael Lehmann
+ *
+ */
 
 #include "tobyDataPipe.h"
 #include "px4_log.h"
-
-
 
 TobyDataPipe::TobyDataPipe(int inBuflength) : buflength(inBuflength), head(0),tail(0),space(buflength), dataToDelete(0), lastIsDeleted(true){
     myBuffer = (char*)malloc(buflength*sizeof(char));
@@ -118,7 +122,6 @@ bool TobyDataPipe::getItemSuccessful(void){
     }
     updateSpace(dataToDelete);
     lastIsDeleted = true;
-    PX4_INFO("deleted successful : %d ",dataToDelete);
 
     return true;
 }

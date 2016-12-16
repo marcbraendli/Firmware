@@ -1,8 +1,8 @@
 /**
 * @file     toby.cpp
 *
-* @brief    Device Class für das Toby Modul
-* @author   Michael Lehmann
+* @brief    Device Class for Toby LTE-Module
+* @author   Marc Brändli & Michael Lehmann
 * @date     10.10.2016
  */
 
@@ -38,9 +38,6 @@ Toby::Toby() :
 #endif
 {
 	init();
-    writeBuffer = new TobyRingBuffer(10,158);
-    readBuffer = new TobyRingBuffer(10,158);
-    writePongBuffer = new PingPongBuffer();
     writeDataPipe = new TobyDataPipe(256);
     readDataPipe = new TobyDataPipe(256);
     atCommanderThread = nullptr;
@@ -55,9 +52,9 @@ Toby::~Toby()
         delete myTobyDevice;
     }
 
-    delete writeBuffer;
-    delete readBuffer;
-    delete writePongBuffer;
+    delete writeDataPipe;
+    delete readDataPipe;
+
 }
 
 
@@ -286,40 +283,10 @@ int Toby::open(device::file_t *filp){
 
     }
 
-
-
-
-
-    //same for readerthread
-
-
-    //****************Test some threading thing's****************
-    // Dangerous passing the myTobyDevice to Thread ... isn't information hiding anymore???!
-
-    workerParameters.myDevice= myTobyDevice;
-    workerParameters.writeBuffer = writeBuffer;
-    workerParameters.readBuffer = this->readBuffer;
-
-    //define the worker with the declareted parameters
-    workerParameters.writePongBuffer = writePongBuffer;
-    //writerThread = new pthread_t;
-    //pthread_create(writerThread, NULL, writeWork, (void*)&workerParameters);
-
-
-    readerParameters.myDevice = myTobyDevice;
-    readerParameters.readBuffer = this->readBuffer;
-   // readerThread = new pthread_t;
-    //pthread_create(readerThread, NULL, readWork, (void*)&readerParameters);
-
-
-
     //***************Initialize the at-CommanderThread which hold's the Statemachine********
 
 
     atCommanderParameters.myDevice = myTobyDevice;
-    atCommanderParameters.readBuffer = readBuffer;
-    atCommanderParameters.writeBuffer= writeBuffer;
-    atCommanderParameters.writePongBuffer= writePongBuffer;
     atCommanderParameters.writeDataPipeBuffer = writeDataPipe;
     atCommanderParameters.readDataPipeBuffer = readDataPipe;
     atCommanderParameters.threadExitSignal = &threadExitSignal;
@@ -332,120 +299,12 @@ int Toby::open(device::file_t *filp){
         return -1;
     }
 
-
-    //**************************Initialize the polling-Thread******************************
-
-  //  pthread_create(pollingThread, NULL, pollingThreadStart, (void*)&pollingThreadParameters);
-
-
-    usleep(100);
-
-
     return OK;
 }
 
 
 
 
-// this is the write thread, reads from the buffer and writes to tobyDevice
-// only for testing of concept and Buffer threadsafety needed, later, we make a AT-Commander, which
-// will control our MavLink data
-void* Toby::writeWork(void *arg){
-
-    PX4_INFO("writeWork Thread started");
-    //extract arguments :
-    threadParameters *arguments = static_cast<threadParameters*>(arg);
-    //BoundedBuffer* writeBuffer = arguments->writeBuffer;
-    TobyDevice* myDevice = arguments->myDevice;
-    PingPongBuffer* writePongBuffer = arguments->writePongBuffer;
-
-
-
-    //we need some space, only once needed ... the size of the space is not fix yet,
-    //TODO : FIX THE SPACE-PROBLEM, how much space should we give? Or maybe, it is saved directly in bufferer (more elegant)
-    char* data = (char*)malloc(62*sizeof(char));
-    char* readBuffer = NULL;
-
-    // For debugging
-    if(data == NULL){
-        PX4_INFO("ERROR writeWork couldn't get space from malloc");
-        return NULL;
-    }
-
- //   for(int i = 0; i < 3; ++i)
-    while(1){
-
-        //get data from buffer
-        if(writePongBuffer->DataAvaiable()){
-            readBuffer = (writePongBuffer->getActualReadBuffer());
-        }
-           int write_return =  myDevice->write(readBuffer,PingPongBuffer::AbsolutBufferLength);
-           if(write_return != PingPongBuffer::AbsolutBufferLength){
-               PX4_INFO("ERROR, only write %d instead of 124",write_return);
-
-           }
-            writePongBuffer->GetDataSuccessfull();
-            usleep(100000);
-
-        }
-
-    sleep(2);
-
-
-    free(data);
-    return NULL;
-
-}
-
-
-// this is the read thread, reads from the buffer and returns it in the toby read function.
-// only for testing of concept and Buffer threadsafety needed, later, we make a AT-Commander, which
-// will control our MavLink data
-void* Toby::readWork(void *arg){
-
-    PX4_INFO("readWork Thread started");
-    //extract arguments :
-    threadParameters *arguments = static_cast<threadParameters*>(arg);
-    TobyRingBuffer* readBuffer = arguments->readBuffer;
-    TobyDevice* myDevice = arguments->myDevice;
-
-
-
-
-    // a ty
-    char* buffer = (char*)malloc(60*sizeof(char));
-
-
-    if(myDevice == NULL || readBuffer == NULL){
-        PX4_INFO("readWork Thread parameters invalid");
-
-    }
-    int i = 0; // poll result handle
-    int u = 0; //size of data received
-    while(1){
-
-        i = myDevice->poll(0);
-        if(i>0){
-          u =  myDevice->read(buffer,60);
-           readBuffer->putString(buffer,u);
-
-        }
-        else{
-          //  PX4_INFO("readWorker : poll got 0");
-
-        }
-        if(buffer == NULL){
-            PX4_INFO("READ WORKER NULLPOINTER");
-        }
-
-    }
-
-
-    PX4_INFO("readWork exit");
-
-    return NULL;
-
-}
 
 void *Toby::doClose(void *arg)
 {

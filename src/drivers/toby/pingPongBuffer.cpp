@@ -1,9 +1,15 @@
+/**
+* @file     pingPongBuffer.cpp
+*
+* @brief    A PingPongBuffer implementation for LTE-Module dispatching
+* @author   Marc Brändli & Michael Lehmann
+* @date     12.12.2016
+*/
+
+
 #include "pingPongBuffer.h"
 #include <stdlib.h>
 #include <px4_log.h>
-
-
-
 
 
 static pthread_mutex_t pingPongBufferlock = PTHREAD_MUTEX_INITIALIZER;

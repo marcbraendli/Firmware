@@ -1,19 +1,18 @@
-#include <stdlib.h>
-#include <string.h>
-#include <pthread.h>
-#include <semaphore.h>
-
-
-
-#ifndef DATAPIPE_H
-#define DATAPIPE_H
-
 /**
  * @brief The TobyDataPipe class a flexible buffer designed for toby device, optimized use all allocated space
  * @file tobyDataPipe.h
  * @author Michael Lehmann
  *
  */
+
+#include <stdlib.h>
+#include <string.h>
+#include <pthread.h>
+#include <semaphore.h>
+
+#ifndef DATAPIPE_H
+#define DATAPIPE_H
+
 
 class TobyDataPipe {
 public:
@@ -79,4 +78,4 @@ private:
 
 };
 
-#endif /* LONGBUFFER_H_ */
+#endif

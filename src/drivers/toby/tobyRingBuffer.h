@@ -1,10 +1,19 @@
+/**
+ * @brief TobyRingBuffer a RingBuffer implementation for Toby LTE-Modul dispatching
+ * @file tobyRingBuffer.h
+ * @author Marc Brändli & Michael Lehmann
+ *
+ */
+
+
+#ifndef TOBYRINGBUFFER
+#define TOBYRINGBUFFER
+
 #include <drivers/device/ringbuffer.h>
 #include <pthread.h>
 #include <string.h>
 #include <semaphore.h>
 
-#ifndef TOBYRINGBUFFER
-#define TOBYRINGBUFFER
 
 
 //Number of buffered elements in buffer, later, we may change to a parameter in constructor with enum, easier to test)

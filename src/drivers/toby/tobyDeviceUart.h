@@ -1,7 +1,12 @@
+/**
+ * @brief TobyDeviceUart implements TobyDevice Interface handles the communication over uart
+ * @file tobyDevice.h
+ * @author Marc Brändli & Michael Lehmann
+ *
+ */
+
 #ifndef tobyDeviceUart_h
 #define tobyDeviceUart_h
-
-
 
 #include <drivers/device/device.h>
 #include <px4_config.h>
@@ -14,9 +19,6 @@
 
 #include <fcntl.h>
 
-/**
- * @brief The TobyDeviceUart class handles the communication over uart, implements interface TobyDevice
- */
 
 
 class TobyDeviceUart : public TobyDevice

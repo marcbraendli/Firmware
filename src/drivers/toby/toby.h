@@ -1,10 +1,15 @@
 /**
-* @file     toby.h
+* @file     toby.cpp
 *
-* @brief    Device Class für das Toby Modul
-* @author   Michael Lehmann
+* @brief    Device Class for Toby LTE-Module
+* @author   Marc Brändli & Michael Lehmann
 * @date     10.10.2016
-*/
+ */
+
+
+#ifndef TOBY_H
+#define TOBY_H
+
 
 #include <drivers/device/device.h>
 #include <px4_config.h>
@@ -19,19 +24,11 @@
 #include "tobyDataPipe.h"
 
 
-
-
-
-
 struct threadParameters
 {
     TobyDevice* myDevice;
-    TobyRingBuffer* writeBuffer;
-    TobyRingBuffer* readBuffer;
-    PingPongBuffer* writePongBuffer;        // these are just for testing
-    TobyDataPipe* writeDataPipeBuffer;      // these are just for testing
-    TobyDataPipe* readDataPipeBuffer;      // these are just for testing
-
+    TobyDataPipe* writeDataPipeBuffer;
+    TobyDataPipe* readDataPipeBuffer;
     volatile bool* threadExitSignal;
     volatile bool* threadStartCommSignal;
 };
@@ -77,27 +74,10 @@ private:
     TobyDeviceUart* myTobyDevice;
 
     struct termios options= {};
-    pthread_t *writerThread;
-    pthread_t *readerThread;
-
     pthread_t *atCommanderThread;
     threadParameters atCommanderParameters;
     volatile bool threadExitSignal;
 
-    pthread_t *pollingThread;
-
-    threadParameters pollingThreadParameters;
-
-    threadParameters workerParameters;
-    threadParameters readerParameters;
-
-
-    TobyRingBuffer* writeBuffer;
-    TobyRingBuffer* readBuffer;
-
-
-    // just a try
-    PingPongBuffer* writePongBuffer;
     TobyDataPipe* writeDataPipe;
     TobyDataPipe* readDataPipe;
 
@@ -109,3 +89,5 @@ private:
 
 
 };
+
+#endif
