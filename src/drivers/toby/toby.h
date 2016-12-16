@@ -24,16 +24,9 @@
 #include "tobyDataPipe.h"
 
 
-struct threadParameters
-{
-    TobyDevice* myDevice;
-    TobyDataPipe* writeDataPipeBuffer;
-    TobyDataPipe* readDataPipeBuffer;
-    volatile bool* threadExitSignal;
-    volatile bool* threadStartCommSignal;
-};
 
-// struct which is used to signaling special events to thread
+//for readAtfromSD function
+#define SD_CARD_PATH       "/fs/microsd/toby/at-inits.txt"
 
 
 /**
@@ -51,22 +44,28 @@ public:
     virtual int	init();
 
 
-    int open(device::file_t *filp);
-    int	close(device::file_t *filp);
-    ssize_t	read(device::file_t *filp, char *buffer, size_t buflen);
-    ssize_t	write(device::file_t *filp, const char *buffer, size_t buflen);
-    off_t	seek(device::file_t *filp, off_t offset, int whence);
+    virtual int open(device::file_t *filp);
+    virtual int	close(device::file_t *filp);
+    virtual ssize_t	read(device::file_t *filp, char *buffer, size_t buflen);
+    virtual ssize_t	write(device::file_t *filp, const char *buffer, size_t buflen);
+    virtual off_t	seek(device::file_t *filp, off_t offset, int whence);
+    virtual int	ioctl(device::file_t *filp, int cmd, unsigned long arg);
+    virtual int	poll(device::file_t *filp, struct pollfd *fds, bool setup);
 
-
-    int	ioctl(device::file_t *filp, int cmd, unsigned long arg);
-    int	poll(device::file_t *filp, struct pollfd *fds, bool setup);
-
-    void printStatus(void);
-    void stopAllThreads(void);
 
 
 
 private:
+
+    bool initLTEModule(void);
+    bool readAtFromSD();
+    void printAtCommands();
+    int getAtCommandLength(const char* at_command);
+    bool setDirectLinkMode();
+    bool initTobyModul();
+    bool tobyAlive(int times);
+    void printStatus(void);
+
 
     int set_flowcontrol(int fd, int control);
     void *doClose(void *arg);
@@ -74,18 +73,31 @@ private:
     TobyDeviceUart* myTobyDevice;
 
     struct termios options= {};
-    pthread_t *atCommanderThread;
-    threadParameters atCommanderParameters;
-    volatile bool threadExitSignal;
 
-    TobyDataPipe* writeDataPipe;
-    TobyDataPipe* readDataPipe;
+    //Enumeration for readAtfromSD function
+    enum{
+        MAX_AT_COMMANDS = 20,
+        MAX_CHAR_PER_AT_COMMANDS =40,
+        READ_BUFFER_LENGHT =100
+    };
+
+    int   numberOfAt;
+    char  atCommandSendArray[MAX_AT_COMMANDS][MAX_CHAR_PER_AT_COMMANDS];
+    char* atCommandSendp[MAX_AT_COMMANDS];
+
+    char* temporaryBuffer; // delete later, just for step-by-step test's
+    char* temporarySendBuffer;
+
+    const char* atEnterCommand;
+    const char* atDirectLinkRequest;
+    const char* atResponseOk;
+    const char* atReadyRequest;
+    const char* atDirectLinkOk;
+    const char* stringEnd;
+    const char* atResetCommand;
+    const char* atExitDirectLink;
 
 
-
-    // our worker thread function, needs to be static, otherwise pthread can't execute (is C, not C++)
-    static void *writeWork(void *arg);
-    static void *readWork(void *arg);
 
 
 };
