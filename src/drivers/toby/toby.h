@@ -54,8 +54,6 @@ public:
 
 
 
-    static pthread_cond_t pollEventSignal;  // has to be public, otherwise we cant use it from at commander
-    static pthread_mutex_t pollingMutex;
 
 private:
 
@@ -65,33 +63,19 @@ private:
     pthread_t *writerThread;
     pthread_t *readerThread;
 
-    pthread_t *atCommanderThread;
-    myStruct atCommanderParameters;
-
-    pthread_t *pollingThread;
 
     myStruct pollingThreadParameters;
-
     myStruct workerParameters; //TODO rename
     myStruct readerParameters;
 
-
-
     BoundedBuffer* writeBuffer;
     BoundedBuffer* readBuffer;
-
-
-    // ein versucht
     PingPongBuffer* writePongBuffer;
 
 
     // our worker thread function, needs to be static, otherwise pthread can't execute (is C, not C++)
     static void *writeWork(void *arg);
     static void *readWork(void *arg);
-    static void *pollingThreadStart(void *arg);
-
-
-
     bool done;
 
 

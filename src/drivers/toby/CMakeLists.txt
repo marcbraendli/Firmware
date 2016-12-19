@@ -42,8 +42,6 @@ px4_add_module(
                 tobyDevice.h
 		boundedBuffer.cpp
 		boundedBuffer.h
-		atCommander.cpp
-		atCommander.h
                 pingPongBuffer.h
                 pingPongBuffer.cpp
 

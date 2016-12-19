@@ -17,7 +17,6 @@
 #include <fcntl.h>
 
 #include "drivers/toby/tobyDevice.h"
-#include "drivers/toby/atCommander.h"
 #include "drivers/drv_toby.h"
 #include "toby.h"
 
@@ -52,21 +51,9 @@ Toby::Toby() :
     writeBuffer = new BoundedBuffer();
     readBuffer = new BoundedBuffer();
     done = true;
-    pthread_cond_init(&pollEventSignal,NULL);
-    pthread_mutex_init(&pollingMutex,NULL);
-
-
-
     writePongBuffer = new PingPongBuffer();
 }
 
-/**
-* @brief Destruktor
-*
-* löscht das Tobydevice, falls es nocht nicht gelöscht wurde
-*
-* @date ?
-*/
 Toby::~Toby()
 {
 
@@ -110,37 +97,6 @@ int Toby::init()
 
 int	Toby::close(device::file_t *filp){
 
-    /* old function
-    {
-    PX4_INFO("close() is called, we close with %d",uart0_filestream);
-    ::device::CDev::close(filp);
-
-    //for Debugging
-    pid_t x = ::getpid();
-    PX4_INFO("actual thread id : %d",x);
-    // **************************************
-
-
-    tcflush(uart0_filestream, TCIFLUSH);
-
-    //force a thread to close the uart
-    pthread_t Toby_thread;
-    pthread_create(&Toby_thread, NULL, doClose, NULL);
-
-
-    //int i = set_flowcontrol(uart0_filestream,1);
-    //PX4_INFO("set_flowcontrol returns with %d");
-    //tcgetattr(uart0_filestream, &options);
-    //this->unlock();
-    //px4_close(uart0_filestream);
-
-    //for Debugging
-    PX4_INFO("toby::close() terminate");
-
-    //return value not valid yet!
-    return 0;
-    }
-    */
 
     //new function
     PX4_INFO("Toby::close() is called, we close with");
@@ -162,24 +118,10 @@ int	Toby::close(device::file_t *filp){
 
 ssize_t	Toby::read(device::file_t *filp, char *buffer, size_t buflen)
 {
-    /* old function
-    {
-    //PX4_INFO("read() is called");
-    ::device::CDev::read(filp,buffer,buflen);
-    int i = px4_read(uart0_filestream,buffer,buflen);
 
-    return i;
-}
-    */
-
-    //new function
-    //PX4_INFO("Toby::read() is called");
-
-    //readBuffer->getString()
-    //return myTobyDevice->read(buffer,buflen);
     int i = 0;
     i = (readBuffer->getString(buffer,buflen));
-   // PX4_INFO("Toby::read() read %d",i);
+
 
     return i;
 
@@ -187,42 +129,11 @@ ssize_t	Toby::read(device::file_t *filp, char *buffer, size_t buflen)
 
 ssize_t	Toby::write(device::file_t *filp, const char *buffer, size_t buflen){
 
- /* old function:
-  {
-    //todo : effizienter implementieren, but how?
-
-    //Debugging
-    // PX4_INFO("write() is called");
-
-    int count = 0;
-    if (uart0_filestream != -1)
-    {
- //       PX4_INFO("::write() uart_filstream %d",uart0_filestream);
-
-
-        count = px4_write(uart0_filestream, buffer, buflen);
-        if (count < 0)
-        {
-            //Debugging
-            PX4_INFO("UART TX error");
-        }
-
-    }
-   // close(NULL);
-
-  }
-    */
-    //the new function
-  //  PX4_INFO("Toby::write() is called");
 
 
      writeBuffer->putString(buffer,buflen);
-     //return writePongBuffer->PutData(buffer,buflen);
-     //sleep(1);
-    // return myTobyDevice->write(buffer,buflen);
+
      return buflen;
-
-
 
 }
 
@@ -240,44 +151,12 @@ off_t Toby::seek(device::file_t *filp, off_t offset, int whence){
 int
 Toby::ioctl(device::file_t *filp, int cmd, unsigned long arg)
 {
-    //PX4_INFO("ioctl mit cmd:  %d",cmd);
-    //ein versuch :
-    //int i = ::device::CDev::ioctl(filp,cmd,arg);
-    //PX4_INFO("ioctl() return %d",i);
 
-    //ioctl direct to uart
-    //new function
     return myTobyDevice->ioctl(cmd,arg);
-    //old function
-    //return ::ioctl(uart0_filestream,cmd,arg);
 }
 
 
 int	Toby::poll(device::file_t *filp, struct pollfd *fds, bool setup){
-
-    /* old Function
-{
-    px4_pollfd_struct_t fds1[1];
-    fds1[0].fd = uart0_filestream;
-    fds1[0].events = POLLIN;
-
-    int poll_return = px4_poll(fds1,1,500);
-    if(poll_return >0){
-        //notify the caller
-        poll_notify(POLLIN);
-        poll_notify_one(fds, POLLIN);
-    }
-
-    //  PX4_INFO("poll() is called with return %d",poll_return);
-}
-*/
-    // new function:
-
-   // int poll_return = 0;
-   // int poll_return = myTobyDevice->poll(fds,setup);
-
-
-
 
 
     if(!readBuffer->empty()){
@@ -292,18 +171,7 @@ int	Toby::poll(device::file_t *filp, struct pollfd *fds, bool setup){
         return 0;
     }
 
-/*
 
-    PX4_INFO("poll() is called with return %d",&poll_return);
-
-    if(poll_return > 0){
-
-        poll_notify(POLLIN);
-        poll_notify_one(fds, POLLIN);
-    }
-    return poll_return;
-
-    */
 }
 
 
@@ -312,10 +180,7 @@ int	Toby::poll(device::file_t *filp, struct pollfd *fds, bool setup){
 
 int toby_init(){
 
-    //für Debuggingzwecke
-    PX4_INFO("toby_init");
     return 0;
-
     //todo : initalization toby L210 Module with AT-Command
 
 }
@@ -414,53 +279,29 @@ int Toby::open(device::file_t *filp){
     this->myTobyDevice = new TobyDevice();
 
     if(this->myTobyDevice == NULL){
+        //some debug
         PX4_INFO("ERROR myTobyDevice is a NULL-Pointer!!!!");
 
     }
 
 
 
-
-
-    //same for readerthread
-
-
     //****************Test some threading thing's****************
     // Dangerous passing the myTobyDevice to Thread ... isn't information hiding anymore???!
-
     workerParameters.myDevice= myTobyDevice;
     workerParameters.writeBuffer = writeBuffer;
     workerParameters.readBuffer = this->readBuffer;
 
     //define the worker with the declareted parameters
     workerParameters.writePongBuffer = writePongBuffer;
-    //writerThread = new pthread_t;
-    //pthread_create(writerThread, NULL, writeWork, (void*)&workerParameters);
+    writerThread = new pthread_t;
+    pthread_create(writerThread, NULL, writeWork, (void*)&workerParameters);
 
 
     readerParameters.myDevice = myTobyDevice;
     readerParameters.readBuffer = this->readBuffer;
-   // readerThread = new pthread_t;
-    //pthread_create(readerThread, NULL, readWork, (void*)&readerParameters);
-
-
-
-    //***************Initialize the at-CommanderThread which hold's the Statemachine********
-
-
-    atCommanderParameters.myDevice = myTobyDevice;
-    atCommanderParameters.readBuffer = readBuffer;
-    atCommanderParameters.writeBuffer= writeBuffer;
-    atCommanderParameters.writePongBuffer= writePongBuffer;
-
-    atCommanderThread = new pthread_t;
-    pthread_create(atCommanderThread, NULL, atCommander::atCommanderStart, (void*)&atCommanderParameters);
-
-
-    //**************************Initialize the polling-Thread******************************
-
-  //  pthread_create(pollingThread, NULL, pollingThreadStart, (void*)&pollingThreadParameters);
-
+    readerThread = new pthread_t;
+    pthread_create(readerThread, NULL, readWork, (void*)&readerParameters);
 
     PX4_INFO("Toby:: exit open()");
 
@@ -482,14 +323,16 @@ void* Toby::writeWork(void *arg){
     PX4_INFO("writeWork Thread started");
     //extract arguments :
     myStruct *arguments = static_cast<myStruct*>(arg);
-    //BoundedBuffer* writeBuffer = arguments->writeBuffer;
     TobyDevice* myDevice = arguments->myDevice;
+
     PingPongBuffer* writePongBuffer = arguments->writePongBuffer;
+    //BoundedBuffer* writeBuffer = arguments->writeBuffer;
+
 
 
 
     //we need some space, only once needed ... the size of the space is not fix yet,
-    //TODO : FIX THE SPACE-PROBLEM, how much space should we give? Or maybe, it is saved directly in bufferer (more elegant)
+    //TODO : FIX THE SPACE-PROBLEM, how much space should we give? Or maybe, it is saved directly in buffer (more elegant)
     char* data = (char*)malloc(62*sizeof(char));
     char* readBuffer = NULL;
 
@@ -518,7 +361,6 @@ void* Toby::writeWork(void *arg){
            }
             writePongBuffer->GetDataSuccessfull();
             usleep(100000);
-
         }
 
         else{
@@ -532,7 +374,6 @@ void* Toby::writeWork(void *arg){
 
           // write data to device
           // variante 1) : myDevice->write(data,size)
-
 
     }
 
@@ -595,86 +436,10 @@ void* Toby::readWork(void *arg){
 }
 
 
-void *Toby::pollingThreadStart(void *arg)
-{
-
-    myStruct *arguments = static_cast<myStruct*>(arg);
-    TobyDevice* myDevice = arguments->myDevice;
-    int poll_return;
-    while(1){
-        pthread_mutex_lock(&pollingMutex);
-
-        poll_return = myDevice->poll(0);
-        if(poll_return > 0){
-            PX4_INFO("polling Thread : poll was successfull");
-     //       pthread_cond_signal(&pollEventSignal);
-
-        }
-        else{
-            PX4_INFO("polling Thread : no polling result");
-
-        }
-       pthread_mutex_unlock(&pollingMutex);
-        usleep(100);
-
-    }
-
-
-
-
-    return NULL;
-}
 
 
 //****************************Helperfunctions, may going into a separate header File********************************
 
-
-// not needed anymore, just for debugging
-//TODO: Delete
-void *doClose(void *arg)
-{
-
-
-    PX4_INFO("Thread started");
-    pid_t x = ::getpid();
-    PX4_INFO("actual thread id : %d",x);
-    int i = px4_close(4);
-
-    PX4_INFO("Thread closed Uart with %d",i);
-
-
-    return NULL;
-}
-
-/*
-void *writeHard(void *arg)
-{
-    PX4_INFO("writeHard Thread started");
-    myStruct *testing = static_cast<myStruct*>(arg);
-  //  PX4_INFO("Thread got the value %s",testing->text);
-
-    const char* myTestText = "HaKLo";
-
-    sleep(5);
-    if(testing->myDevice == NULL){
-        PX4_INFO("Thread :: got a null-pointer!!");
-
-    }
-
-    PX4_INFO("Thread : Let's write to device");
-    testing->myDevice->write(myTestText,5);
-
-    //TobyDevice *pointer = dynamic_cast<TobyDevice*>(testing->myDevice);
-
-
-
-
-    // pthread_exit();
-    return NULL;
-}
-
-
-*/
 
 int set_flowcontrol(int fd, int control)
 {
