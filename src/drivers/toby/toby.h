@@ -14,6 +14,8 @@
 #include "tobyDevice.h"
 #include "boundedBuffer.h"
 #include "pingPongBuffer.h"
+#include "tobyDataPipe.h"
+
 
 
 
@@ -25,6 +27,8 @@ struct myStruct //TODO rename
     BoundedBuffer* writeBuffer;  //TODO rename
     BoundedBuffer* readBuffer;
     PingPongBuffer* writePongBuffer;
+    TobyDataPipe* writeDataPipeBuffer;
+    TobyDataPipe* readDataPipeBuffer;
 };
 
 /**
@@ -71,6 +75,8 @@ private:
     BoundedBuffer* writeBuffer;
     BoundedBuffer* readBuffer;
     PingPongBuffer* writePongBuffer;
+    TobyDataPipe* writeDataPipeBuffer;
+    TobyDataPipe* readDataPipeBuffer;
 
 
     // our worker thread function, needs to be static, otherwise pthread can't execute (is C, not C++)

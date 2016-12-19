@@ -52,6 +52,9 @@ Toby::Toby() :
     readBuffer = new BoundedBuffer();
     done = true;
     writePongBuffer = new PingPongBuffer();
+    writeDataPipeBuffer = new TobyDataPipe(128);
+    readDataPipeBuffer = new TobyDataPipe(128);
+
 }
 
 Toby::~Toby()
@@ -289,10 +292,11 @@ int Toby::open(device::file_t *filp){
     //****************Test some threading thing's****************
     // Dangerous passing the myTobyDevice to Thread ... isn't information hiding anymore???!
     workerParameters.myDevice= myTobyDevice;
-    workerParameters.writeBuffer = writeBuffer;
     workerParameters.readBuffer = this->readBuffer;
 
     //define the worker with the declareted parameters
+    workerParameters.writeBuffer = writeBuffer;
+    workerParameters.writeDataPipeBuffer = this->writeDataPipeBuffer;
     workerParameters.writePongBuffer = writePongBuffer;
     writerThread = new pthread_t;
     pthread_create(writerThread, NULL, writeWork, (void*)&workerParameters);
@@ -300,6 +304,7 @@ int Toby::open(device::file_t *filp){
 
     readerParameters.myDevice = myTobyDevice;
     readerParameters.readBuffer = this->readBuffer;
+    readerParameters.readDataPipeBuffer = this->readDataPipeBuffer;
     readerThread = new pthread_t;
     pthread_create(readerThread, NULL, readWork, (void*)&readerParameters);
 

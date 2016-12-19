@@ -44,6 +44,8 @@ px4_add_module(
 		boundedBuffer.h
                 pingPongBuffer.h
                 pingPongBuffer.cpp
+		tobyDataPipe.cpp
+		tobyDataPipe.h
 
         DEPENDS
                 platforms__common
