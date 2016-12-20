@@ -92,26 +92,13 @@ int	Toby::close(device::file_t *filp){
 ssize_t	Toby::read(device::file_t *filp, char *buffer, size_t buflen)
 {
 
-    int i = 0;
-    i = readDataPipe->getItem(buffer,buflen);
-  //  i = (readBuffer->getString(buffer,buflen));
-    return i;
-
+    return readDataPipe->getItem(buffer,buflen);
 }
 
 ssize_t	Toby::write(device::file_t *filp, const char *buffer, size_t buflen){
 
-    //no space, buffer is full -> does not work, communication lost
-    //however we lock the mavlink-thread in buffer
-    /*
-     if(writeBuffer->full()){
-         return 0;
-     }
-     */
 
-     //writeBuffer->putString(buffer,buflen);
-     writeDataPipe->putItem(buffer,buflen);
-     return buflen;
+     return writeDataPipe->putItem(buffer,buflen);
 }
 
 
@@ -144,22 +131,6 @@ int	Toby::poll(device::file_t *filp, struct pollfd *fds, bool setup){
     else{
         return 0;
     }
-
-
-/*
-    if(!readBuffer->empty()){
-        poll_notify(POLLIN);
-        poll_notify_one(fds, POLLIN);
-        return  1;
-
-    }
-
-    else{
-        return 0;
-    }
-
-    */
-
 }
 
 

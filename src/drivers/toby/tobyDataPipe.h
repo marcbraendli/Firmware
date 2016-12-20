@@ -44,11 +44,23 @@ public:
 
     int getItemPointer(char* &val);
 
+    /**
+     * @brief getSpace
+     * @return free space counted in number of characters
+     */
     int getSpace(void){
         return space;
     }
 
+    /**
+     * @brief getItemSuccessful signals buffer to release last buffer tail. Call this method after putItemPointer
+     * @return
+     */
 	bool getItemSuccessful(void);
+    /**
+     * @brief isEmpty
+     * @return true if there is no data stored
+     */
     bool isEmpty(void);
 
 

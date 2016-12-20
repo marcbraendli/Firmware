@@ -473,11 +473,9 @@ void* atCommander::readWork(void *arg){
                 u =  myDevice->read(buffer,space);
                 put_return = readPipeBuffer->putItem(buffer,u);
                 if(put_return < u){
-                    //   PX4_INFO("ERROR no space");
+                     PX4_INFO("INFO no space in buffer");
                 }
-                else{
-                    PX4_INFO("Successful read of %d",put_return);
-                }
+
             }
 
         }
