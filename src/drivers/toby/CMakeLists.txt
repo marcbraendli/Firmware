@@ -40,8 +40,8 @@ px4_add_module(
 		toby.h
                 tobyDevice.cpp
                 tobyDevice.h
-		boundedBuffer.cpp
-		boundedBuffer.h
+		tobyRingBuffer.cpp
+		tobyRingBuffer.h
                 pingPongBuffer.h
                 pingPongBuffer.cpp
 		tobyDataPipe.cpp

@@ -1,4 +1,4 @@
-#include "boundedBuffer.h"
+#include "tobyRingBuffer.h"
 #include "px4_log.h"
 
 enum{
@@ -10,7 +10,7 @@ enum{
 //TODO: Do it in a better way?
 static pthread_mutex_t bufferlock = PTHREAD_MUTEX_INITIALIZER;
 
-BoundedBuffer::BoundedBuffer(){
+TobyRingBuffer::TobyRingBuffer(){
 
     pthread_cond_init(&isFull,NULL);
     pthread_cond_init(&isEmpty,NULL);
@@ -32,7 +32,7 @@ BoundedBuffer::BoundedBuffer(){
     }
 }
 
-BoundedBuffer::~BoundedBuffer(){
+TobyRingBuffer::~TobyRingBuffer(){
 
     for(int i = 0; i < BUFSIZE; ++i ){
         free(myBuffer[i]);
@@ -45,7 +45,7 @@ BoundedBuffer::~BoundedBuffer(){
 
 
 
-int BoundedBuffer::getString(char *val, size_t size){
+int TobyRingBuffer::getString(char *val, size_t size){
 
     pthread_mutex_lock(&bufferlock);
 //    PX4_INFO("getString: hasLock");
@@ -57,7 +57,7 @@ int BoundedBuffer::getString(char *val, size_t size){
 
     if(mySize[tail] > size ){
         // the requester's buffer isnt' big enough
-        PX4_INFO("boundedBuffer getString requested buffer isn't big enough");
+        PX4_INFO("TobyRingBuffer getString requested buffer isn't big enough");
         pthread_cond_signal(&isFull);
         pthread_mutex_unlock(&bufferlock);
         return 0;
@@ -77,15 +77,15 @@ int BoundedBuffer::getString(char *val, size_t size){
 
 }
 
-bool BoundedBuffer::putString(const char* val, size_t size){
+bool TobyRingBuffer::putString(const char* val, size_t size){
 
-   // PX4_INFO("boundedBuffer: put String is called() %s",val);
+   // PX4_INFO("TobyRingBuffer: put String is called() %s",val);
 
     pthread_mutex_lock(&bufferlock);
    // PX4_INFO("putString: hasLock");
 
     while(this->full()){
-       // PX4_INFO("boundedBuffer: isFull");
+       // PX4_INFO("TobyRingBuffer: isFull");
 
         pthread_cond_wait(&isFull,&bufferlock);
     }
@@ -101,7 +101,7 @@ bool BoundedBuffer::putString(const char* val, size_t size){
    }
 
     memcpy(myBuffer[head],val,size);
-   // PX4_INFO("boundedBuffer: saved String is %s",myBuffer[head]);
+   // PX4_INFO("TobyRingBuffer: saved String is %s",myBuffer[head]);
 
     mySize[head] = size;
     numElements++;

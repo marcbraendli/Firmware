@@ -12,7 +12,7 @@
 #include <drivers/device/device_nuttx.h>
 #include <termios.h>
 #include "tobyDevice.h"
-#include "boundedBuffer.h"
+#include "tobyRingBuffer.h"
 #include "pingPongBuffer.h"
 #include "tobyDataPipe.h"
 
@@ -24,8 +24,8 @@
 struct myStruct //TODO rename
 {
     TobyDevice* myDevice;
-    BoundedBuffer* writeBuffer;  //TODO rename
-    BoundedBuffer* readBuffer;
+    TobyRingBuffer* writeBuffer;  //TODO rename
+    TobyRingBuffer* readBuffer;
     PingPongBuffer* writePongBuffer;
     TobyDataPipe* writeDataPipeBuffer;
     TobyDataPipe* readDataPipeBuffer;
@@ -72,8 +72,8 @@ private:
     myStruct workerParameters; //TODO rename
     myStruct readerParameters;
 
-    BoundedBuffer* writeBuffer;
-    BoundedBuffer* readBuffer;
+    TobyRingBuffer* writeBuffer;
+    TobyRingBuffer* readBuffer;
     PingPongBuffer* writePongBuffer;
     TobyDataPipe* writeDataPipeBuffer;
     TobyDataPipe* readDataPipeBuffer;

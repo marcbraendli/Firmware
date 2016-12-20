@@ -48,8 +48,8 @@ Toby::Toby() :
 #endif
 {
 	init();
-    writeBuffer = new BoundedBuffer();
-    readBuffer = new BoundedBuffer();
+    writeBuffer = new TobyRingBuffer();
+    readBuffer = new TobyRingBuffer();
     done = true;
     writePongBuffer = new PingPongBuffer();
     writeDataPipeBuffer = new TobyDataPipe(128);
@@ -331,7 +331,8 @@ void* Toby::writeWork(void *arg){
     TobyDevice* myDevice = arguments->myDevice;
 
     PingPongBuffer* writePongBuffer = arguments->writePongBuffer;
-    //BoundedBuffer* writeBuffer = arguments->writeBuffer;
+    //TobyRingBuffer* writeBuffer = arguments->writeBuffer;
+    // TobyDataPipe* writeBuffer = arguments->writeDataPipeBuffer;
 
 
 
@@ -354,9 +355,6 @@ void* Toby::writeWork(void *arg){
     //TODO : Implement thread should exit logik
     while(1){
 
-        //get data from buffer
-        //variante 1) : size = writeBuffer->getString(data,62);
-
         if(writePongBuffer->DataAvaiable()){
             readBuffer = (writePongBuffer->getActualReadBuffer());
            int write_return =  myDevice->write(readBuffer,PingPongBuffer::AbsolutBufferLength);
@@ -369,7 +367,7 @@ void* Toby::writeWork(void *arg){
         }
 
         else{
-            usleep(50);
+            usleep(5000);
         }
 
         //write data to hardware
@@ -399,7 +397,7 @@ void* Toby::readWork(void *arg){
     PX4_INFO("readWork Thread started");
     //extract arguments :
     myStruct *arguments = static_cast<myStruct*>(arg);
-    BoundedBuffer* readBuffer = arguments->readBuffer;
+    TobyRingBuffer* readBuffer = arguments->readBuffer;
     TobyDevice* myDevice = arguments->myDevice;
 
 

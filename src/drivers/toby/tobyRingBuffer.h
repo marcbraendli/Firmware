@@ -3,8 +3,8 @@
 #include <string.h>
 #include <semaphore.h>
 
-#ifndef BOUNDEDBUFFER
-#define BOUNDEDBUFFER
+#ifndef TOBYRINGBUFFER
+#define TOBYRINGBUFFER
 
 
 //Number of buffered elements in buffer, later, we may change to a parameter in constructor with enum, easier to test)
@@ -14,9 +14,9 @@ enum{
 
 
 /**
- * @file boundedBuffer.h
+ * @file TobyRingBuffer.h
  *
- * The Name "BoundedBuffer" isnt valid anymore, its actual a CircularBuffer
+ * The Name "TobyRingBuffer" isnt valid anymore, its actual a CircularBuffer
  * is Threadsafe, works only with the toby-module
  *
  * BUFSIZE: Number of total items
@@ -28,13 +28,13 @@ enum{
 
 
 
-class BoundedBuffer
+class TobyRingBuffer
 
 {
 public:
 
-    BoundedBuffer();
-    ~BoundedBuffer();
+    TobyRingBuffer();
+    ~TobyRingBuffer();
 
 
     /**
