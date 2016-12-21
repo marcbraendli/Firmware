@@ -38,7 +38,6 @@ px4_add_module(
         SRCS
                 toby.cpp
 		toby.h
-                tobyDevice.cpp
                 tobyDevice.h
 		tobyDeviceUart.cpp
                 tobyDeviceUart.h

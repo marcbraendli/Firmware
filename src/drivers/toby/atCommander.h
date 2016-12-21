@@ -72,6 +72,12 @@ public:
      */
     static void *atCommanderStart(void *arg);
 
+    /**
+     * @brief errorOccured this function is needed to check in the event loop if there was an error occured
+     * @return true if an error was occured
+     */
+    bool errorOccured(void);
+
 private:
     //States for the FSM
     enum State {
@@ -186,6 +192,8 @@ private:
     pthread_t* atReaderThread;
     threadParameter readerParameters;
     volatile bool readerExitSignal;
+
+    bool error;
 
     int         numberOfAt;
     char  atCommandSendArray[MAX_AT_COMMANDS][MAX_CHAR_PER_AT_COMMANDS];

@@ -20,12 +20,9 @@ enum{
 
 atCommander::atCommander(TobyDevice* tobyDevice, TobyDataPipe* inWriteBuffer, TobyDataPipe* inReadBuffer)
     : currentState (InitState), moduleState(ATCommandMode), myDevice(tobyDevice),
-      dataPipeWriteBuffer(inWriteBuffer), dataPipeReadBuffer(inReadBuffer)
+      dataPipeWriteBuffer(inWriteBuffer), dataPipeReadBuffer(inReadBuffer), atReaderThread(nullptr), error(false)
 {
 
-
-    atReaderThread = 0;
-    currentState = InitState;
 
     temporaryBuffer = (char*)malloc(72*sizeof(char));
     temporarySendBuffer = (char*)malloc(62*sizeof(char));
@@ -62,7 +59,7 @@ void atCommander::process(Event e){
     case InitState:{
 
         PX4_INFO("InitState");
-        if(e == evInit ){
+        if(e == evInit){
 
             if(tobyAlive(10)==true){
 
@@ -164,6 +161,7 @@ void atCommander::process(Event e){
             if(ret){
                 //shutdown successful we try to reinitialize the LTE-Module -> no error counting yet
                 currentState = InitState;
+                error = true;
             }
         }
 
@@ -208,19 +206,24 @@ void* atCommander::atCommanderStart(void* arg){
     sleep(1);
     PX4_INFO("Run");
 
-
+    // here begins the thread main loop
     while(!*shouldExitSignal){
 
         if(!(dataPipeWriteBuffer->isEmpty())){ // a bit inconsistent, should be done in FSM, but for actual state of play useful
             atCommanderFSM->process(evWriteDataAvailable);
-            usleep(1000);
+            usleep(10000);
         }
         else{
-            usleep(1000);
+            usleep(10000);
         }
 
-
-
+        //if there was an error occured, we have to reinitialize the module, because
+        //the FSM only resets the module and set the FSM state back to init.
+        //Not the best solution but we didn't know a pretty way
+        if(atCommanderFSM->errorOccured()){
+            atCommanderFSM->process(evInit);
+            atCommanderFSM->process(evStart);
+        }
     }
 
 
@@ -518,4 +521,8 @@ bool atCommander::shutdownModule(){
     // myDevice->write(atResetCommand, getAtCommandLenght(atResetCommand));
 
     return false;
+}
+
+bool atCommander::errorOccured(){
+    return error;
 }
