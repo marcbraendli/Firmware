@@ -314,14 +314,12 @@ int led_toggle(int led)
 
 int led_on(int led)
 {
-    PX4_WARN("RGBLED led_on ");                           //custom_debug
 	return h_leds.ioctl(LED_ON, led);
 
 }
 
 int led_off(int led)
 {
-   // PX4_WARN("RGBLED led_off ");                           //custom_debug
 	return h_leds.ioctl(LED_OFF, led);
 
 
@@ -329,23 +327,17 @@ int led_off(int led)
 
 void rgbled_set_color(rgbled_color_t color)
 {
-    PX4_WARN("RGBLED set color %d ", color);                //custom_debug
-    h_rgbleds.ioctl(RGBLED_SET_COLOR, 4);
 
-
-//	h_rgbleds.ioctl(RGBLED_SET_COLOR, (unsigned long)color);
+    h_rgbleds.ioctl(RGBLED_SET_COLOR, (unsigned long)color);
 }
 
 void rgbled_set_mode(rgbled_mode_t mode)
 {
-    PX4_WARN("RGBLED set mode %d", mode);                   //custom_debug
-   // h_rgbleds.ioctl(RGBLED_SET_MODE, 3);
-    h_rgbleds.ioctl(RGBLED_SET_MODE, (unsigned long)mode);
+    h_rgbleds.ioctl(RGBLED_SET_MODE, 3);
 }
 
 void rgbled_set_pattern(rgbled_pattern_t *pattern)
 {
-    PX4_WARN("RGBLED set pattern ");                           //custom_debug
 
 	h_rgbleds.ioctl(RGBLED_SET_PATTERN, (unsigned long)pattern);
 }

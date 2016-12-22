@@ -718,7 +718,6 @@ int Mavlink::mavlink_open_uart(int baud, const char *uart_name, struct termios *
 			}
 
 			usleep(100000);
-                       //debugging
 
 			_uart_fd = ::open(uart_name, O_RDWR | O_NOCTTY);
 		};

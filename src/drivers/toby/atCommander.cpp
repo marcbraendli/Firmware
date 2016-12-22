@@ -137,8 +137,6 @@ void atCommander::process(Event e){
                 PX4_INFO("Error writing Data to UART"); // we lost data
             }
             dataPipeWriteBuffer->getItemSuccessful();   // we have to "free" the data we send
-            usleep(10000);
-
 
 
         }
@@ -199,10 +197,10 @@ void* atCommander::atCommanderStart(void* arg){
 
 
     atCommanderFSM->process(evInit);
-
     atCommanderFSM->process(evStart);
 
     PX4_INFO("Sleep");
+    //Mavlink need some time
     sleep(1);
     PX4_INFO("Run");
 
@@ -435,11 +433,6 @@ bool atCommander::readAtfromSD()
     atcommandbufferstand--;
     numberOfAt=atcommandbufferstand;
 
-    //For Debbuging
-    //printAtCommands(atcommandbuffer,atcommandbufferstand);
-    //PX4_INFO("atcommandbufferstand in readATfromSD fkt: %d", numberOfAt);
-
-
     return returnValue;
 }
 
@@ -492,7 +485,6 @@ void* atCommander::readWork(void *arg){
     PX4_INFO("readWork exit");
 
     return nullptr;
-
 }
 
 int atCommander::shutDown(void){
